@@ -231,7 +231,7 @@ RISCOS_ROM_ASSET = "RISCOS.IMG"
 # `--sync nfs` (alias: mynfs); `--sync sys-nfs` forces the host kernel NFS
 # server instead.
 MYNFSD_VERSION = "0.1.0"
-MYNFSD_URL = ("https://github.com/anyvm-org/nfsd/releases/download/"
+MYNFSD_URL = ("https://github.com/portsbuild-vm/nfsd/releases/download/"
               "v{}/nfsd.py".format(MYNFSD_VERSION))
 
 VERSION_TOKEN_RE = re.compile(r"[0-9]+|[A-Za-z]+")
@@ -8047,8 +8047,8 @@ def main():
         else:
             config['vga'] = "virtio"
 
-    arepo = "vmactions/{}-builder".format(config['os'])
-    brepo = "anyvm-org/{}-builder".format(config['os'])
+    arepo = "portsbuild-vm/{}-builder".format(config['os'])
+    brepo = "portsbuild-vm/{}-builder".format(config['os'])
     if config['builder']:
         builder_repo = brepo if cmp_version(config['builder'], "2.0.0") >= 0 else arepo
         release_repo_candidates = [builder_repo]

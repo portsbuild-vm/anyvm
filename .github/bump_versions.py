@@ -29,7 +29,7 @@ import urllib.request
 ANYVM_PY = "anyvm.py"
 WF_DIR = os.path.join(".github", "workflows")
 ALLOW = os.path.join(".github", "coverage.allow")
-BUILDER_ORG = "anyvm-org"
+BUILDER_ORG = "portsbuild-vm"
 API = "https://api.github.com"
 
 DEFAULT_RE = re.compile(
