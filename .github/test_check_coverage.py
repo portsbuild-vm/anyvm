@@ -90,9 +90,9 @@ class TestVersions(unittest.TestCase):
 class TestReleaseIndexUrl(unittest.TestCase):
     def test_url_points_at_the_pinned_release_asset(self):
         self.assertEqual(
-            cc.release_index_url("netbsd", "2.1.5"),
-            "https://github.com/anyvm-org/netbsd-builder/releases/download/"
-            "v2.1.5/releases.json")
+            cc.release_index_url("netbsd", "2.2.6"),
+            "https://github.com/portsbuild-vm/freebsd-builder/releases/download/"
+            "v2.2.6/releases.json")
 
     def test_url_never_uses_a_branch_or_latest(self):
         # the index must be a matched pair with the images of one pinned
