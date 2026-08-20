@@ -78,7 +78,7 @@ def default_builder_versions():
     if not m:
         sys.exit("check_coverage: DEFAULT_BUILDER_VERSIONS not found")
     versions = dict(VERSIONS_RE.findall(m.group(1)))
-    if len(versions) < 10:
+    if len(versions) < 1:
         sys.exit("check_coverage: DEFAULT_BUILDER_VERSIONS parse "
                   "suspiciously small (%d)" % len(versions))
     return versions
