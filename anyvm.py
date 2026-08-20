@@ -142,26 +142,7 @@ OPENBSD_E1000_RELEASES = {"7.3", "7.4", "7.5", "7.6"}
 
 
 DEFAULT_BUILDER_VERSIONS = {
-    "freebsd": "2.2.5",
-    "openbsd": "2.0.9",
-    "netbsd": "2.2.2",
-    "dragonflybsd": "2.0.6",
-    "solaris": "2.0.6",
-    "omnios": "2.1.2",
-    "haiku": "2.0.2",
-    "midnightbsd": "2.0.6",
-    "tribblix": "2.0.6",
-    "openindiana": "2.1.1",
-    "ubuntu": "2.0.9",
-    "openeuler": "2.0.2",
-    "ghostbsd": "2.0.7",
-    "blissos": "2.0.2",
-    "hurd": "2.0.0",
-    "plan9": "2.0.1",
-    "nextbsd": "2.0.1",
-    "reactos": "2.0.0",
-    "riscos": "2.0.0",
-    "redox": "2.0.1"
+    "freebsd": "2.2.6"
 }
 
 # Pinned, self-contained QEMU builds published as release assets by
