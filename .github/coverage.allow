@@ -10,36 +10,36 @@
 # blissos-builder/releases.json). blissos.yml already exercises scp
 # directly on ubuntu-24.04, windows-latest AND macos-latest, so the
 # shared cross-host jobs below would be pure duplication.
-blissos * test.yml
-blissos * testmacos.yml
-blissos * testwindows.yml
+#blissos * test.yml
+#blissos * testmacos.yml
+#blissos * testwindows.yml
 
 # dragonflybsd: testsync exercises sshfs+scp+rsync together. dragonflybsd-
 # builder's table.md documents "sshfs is not offered on DragonFlyBSD --
 # the sshfs (FUSE) mount is read-only in practice ... so only rsync/scp/nfs
 # are listed" (releases.json sync=rsync,scp,nfs, no sshfs). dragonflybsd
 # stays in testnfs/testsysnfs (nfs-only), only testsync is affected.
-dragonflybsd * test.yml
+#dragonflybsd * test.yml
 
 # nextbsd: test.yml's own comment above the testnfs job says it plainly --
 # "nextbsd is in this job (the bundled user-space nfsd) but deliberately
 # NOT in testsysnfs below: only the user-space path has been verified on
 # it." nextbsd is already present in testsync/testnfs; only testsysnfs is
 # affected.
-nextbsd * test.yml
+#nextbsd * test.yml
 
 # omnios: omnios.yml's own comment -- "OmniOS has no FUSE sshfs
 # (VM_SSHFS_PKG is empty), so sshfs is not offered" (releases.json
 # sync=rsync,scp,nfs for every release). omnios stays in testnfs/
 # testsysnfs; only testsync (which needs sshfs) is affected.
-omnios * test.yml
+#omnios * test.yml
 
 # openindiana: testsync tests exactly sshfs+scp+rsync. openindiana's own
 # dedicated openindiana.yml ALREADY runs that same trio (plus nfs) directly
 # for every release (matrix sync: [sshfs, scp, nfs, rsync]), so duplicating
 # it in the shared testsync job adds no coverage. openindiana stays in
 # testnfs/testsysnfs.
-openindiana * test.yml
+#openindiana * test.yml
 
 # plan9 (9front): has no sshd, so it cannot reuse the ssh-based
 # testrun.yml that testsync/testnfs/testsysnfs (and the macos/windows
@@ -47,9 +47,9 @@ openindiana * test.yml
 # say so directly in the comment above their own dedicated "plan9" job,
 # which already verifies boot + telnet-exec + 9P-sync (Linux) or telnet-
 # exec (macOS/Windows) on that same workflow file.
-plan9 * test.yml
-plan9 * testmacos.yml
-plan9 * testwindows.yml
+#plan9 * test.yml
+#plan9 * testmacos.yml
+#plan9 * testwindows.yml
 
 # reactos: ReactOS ships no remote-access server at all, so reactos-builder
 # bakes its own Win32 telnet server into the image; with no sshd it cannot
@@ -64,9 +64,9 @@ plan9 * testwindows.yml
 # -rtc driftfix=slew, which breaks ReactOS' HAL stall calibration on any
 # host without full hardware virtualisation. With that dropped the guest
 # boots in 68 s under pure TCG and 35 s under WHPX.)
-reactos * test.yml
-reactos * testmacos.yml
-reactos * testwindows.yml
+#reactos * test.yml
+#reactos * testmacos.yml
+#reactos * testwindows.yml
 
 # riscos: two independent reasons, and neither is a hole worth filling.
 #
@@ -85,9 +85,9 @@ reactos * testwindows.yml
 # on a raspi machine, so the guest depends on the patched build that
 # ensure_pinned_qemu() downloads -- and that only exists for Linux x86_64."
 # The pinned asset is literally named for it: qemu-10.2.3-riscos-arm-noble.
-riscos * test.yml
-riscos * testmacos.yml
-riscos * testwindows.yml
+#riscos * test.yml
+#riscos * testmacos.yml
+#riscos * testwindows.yml
 
 # redox: Redox 0.9.0 ships no remote-access server of any kind -- no sshd, no
 # telnetd, no ftpd -- so redox-builder injects its own no_std agent into the
@@ -105,32 +105,32 @@ riscos * testwindows.yml
 # This is a deferred gap, not a determination: the fix is dedicated redox jobs
 # in testmacos.yml and testwindows.yml mirroring the reactos ones, and these
 # two lines should be deleted the day those land (maintainer note 2026-08-12).
-redox * test.yml
-redox * testmacos.yml
-redox * testwindows.yml
+#redox * test.yml
+#redox * testmacos.yml
+#redox * testwindows.yml
 
 # solaris: solaris.yml's own comment -- "Solaris has no FUSE sshfs
 # (VM_SSHFS_PKG is unset), so sshfs is omitted" (releases.json
 # sync=rsync,scp,nfs). solaris stays in testnfs/testsysnfs; only testsync
 # (which needs sshfs) is affected.
-solaris * test.yml
+#solaris * test.yml
 
 # tribblix: releases.json sync=rsync,scp,nfs for every release (no sshfs),
 # and tribblix.yml's own matrix never tests sshfs either. tribblix stays
 # in testnfs/testsysnfs; only testsync is affected.
-tribblix * test.yml
+#tribblix * test.yml
 
 # The -build variants (base OS plus a preinstalled build-essential
 # toolchain) are deliberately untested -- maintainer decision 2026-07-26:
 # the base release of each already exercises the same boot/sync paths.
-omnios r151054-build omnios.yml
-omnios r151056-build omnios.yml
-omnios r151058-build omnios.yml
-openindiana 202510-build openindiana.yml
-openindiana 202604-build openindiana.yml
+#omnios r151054-build omnios.yml
+#omnios r151056-build omnios.yml
+#omnios r151058-build omnios.yml
+#openindiana 202510-build openindiana.yml
+#openindiana 202604-build openindiana.yml
 
 # The solaris toolchain variants (base 11.4 plus a specific newer
 # compiler toolchain) are deliberately untested -- maintainer decision
 # 2026-07-26: 11.4 and 11.4-gcc already exercise the same boot/sync paths.
-solaris 11.4-gcc-14 solaris.yml
-solaris 11.4-clang-19 solaris.yml
+#solaris 11.4-gcc-14 solaris.yml
+#solaris 11.4-clang-19 solaris.yml
