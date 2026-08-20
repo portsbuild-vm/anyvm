@@ -90,7 +90,7 @@ class TestVersions(unittest.TestCase):
 class TestReleaseIndexUrl(unittest.TestCase):
     def test_url_points_at_the_pinned_release_asset(self):
         self.assertEqual(
-            cc.release_index_url("netbsd", "2.2.6"),
+            cc.release_index_url("freebsd", "2.2.6"),
             "https://github.com/portsbuild-vm/freebsd-builder/releases/download/"
             "v2.2.6/releases.json")
 
