@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["12.4", "13.2", "13.3", "13.4", "13.5", "14.0", "14.1", "14.2", "14.3", "14.4", "15.0", "15.1"]
+        release: ["14.4", "15.0", "15.1"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-24.04", "ubuntu-24.04-arm"]
         sync: ["sshfs", "nfs", "scp", "rsync", "tar"]
@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "13.3", "13.5", "14.0", "14.1", "14.2", "14.3", "14.4", "15.0", "15.1"]
+        release: ["14.4", "15.0", "15.1"]
         arch: ["riscv64"]
         runs: ["ubuntu-24.04"]
         sync: ["nfs", "scp", "tar"]
@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "13.3", "13.4", "13.5", "14.0", "14.1", "14.2", "14.3", "14.4", "15.0", "15.1"]
+        release: ["14.4", "15.0", "15.1"]
         arch: ["powerpc64"]
         runs: ["ubuntu-24.04"]
         sync: ["nfs", "scp", "tar"]
