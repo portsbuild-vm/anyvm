@@ -48,7 +48,7 @@ jobs:
       - name: Commit and push changes
         if: ${{ !cancelled() }}
         run: |
-          git config user.email "ghactions@anyvm.org"
+          git config user.email "ghactions@portsbuild.org"
           git config user.name "Bump.yml"
           git add anyvm.py .github/coverage.allow
           git add .github/workflows/*.yml

@@ -1,6 +1,6 @@
 # Run any VM anywhere 
 
-[![Test](https://github.com/anyvm-org/anyvm/actions/workflows/test.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/test.yml)
+[![Test](https://github.com/portsbuild-vm/anyvm/actions/workflows/test.yml/badge.svg)](https://github.com/portsbuild-vm/anyvm/actions/workflows/test.yml)
 
 **Website: [anyvm.org](https://anyvm.org)** -- the guest/architecture matrix,
 per-guest notes, the full CLI reference and troubleshooting, in English and
@@ -12,7 +12,7 @@ anyvm is a single-file tool for bootstrapping BSD, Illumos, Linux, Haiku, GNU Hu
 
 - Github CodeSpace:
   
-  [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/anyvm-org/anyvm)
+  [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/portsbuild-vm/anyvm)
   
   Enable KVM in Codespaces before running:
 

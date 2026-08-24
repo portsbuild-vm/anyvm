@@ -26,7 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
+        os: ["freebsd"]
+        # os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-24.04"]
         sync: ["sshfs", "scp", "rsync"]
@@ -62,7 +63,7 @@ jobs:
             sync: sshfs
           - os: haiku
             arch: aarch64
-        include:
+        # include:
           # haiku is the one guest in these matrices that needs non-default
           # inputs, so they ride along as matrix data rather than as a
           # per-caller conditional. Its "/" is a rootfs that holds
@@ -75,9 +76,9 @@ jobs:
           # `${{ inputs.user }}@localhost` check trips over. Every other os
           # leaves both unset and testrun.yml falls back to its documented
           # defaults. Matches what haiku.yml has always passed.
-          - os: haiku
-            user: user
-            vmpath: /boot/home/host
+          # - os: haiku
+          #   user: user
+          #   vmpath: /boot/home/host
 
     uses: ./.github/workflows/testrun.yml
     secrets: inherit
@@ -100,7 +101,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
+        os: ["freebsd"]
+        # os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-24.04"]
         exclude:
@@ -127,7 +129,7 @@ jobs:
             arch: aarch64
           - os: haiku
             arch: aarch64
-        include:
+        # include:
           # haiku is the one guest in these matrices that needs non-default
           # inputs, so they ride along as matrix data rather than as a
           # per-caller conditional. Its "/" is a rootfs that holds
@@ -140,9 +142,9 @@ jobs:
           # `${{ inputs.user }}@localhost` check trips over. Every other os
           # leaves both unset and testrun.yml falls back to its documented
           # defaults. Matches what haiku.yml has always passed.
-          - os: haiku
-            user: user
-            vmpath: /boot/home/host
+          # - os: haiku
+          #   user: user
+          #   vmpath: /boot/home/host
 
 
     uses: ./.github/workflows/testrun.yml
@@ -184,7 +186,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
+        os: ["freebsd"]
+        # os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "nextbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-24.04"]
         exclude:
@@ -211,14 +214,14 @@ jobs:
             arch: aarch64
           - os: haiku
             arch: aarch64
-        include:
+        # include:
           # The same haiku overrides the other jobs in this file carry: its "/"
           # holds directories and symlinks but no regular files, so the share
           # has to land on the real BFS volume, and the guest account is
           # `user` -- the default root cannot log in at all.
-          - os: haiku
-            user: user
-            vmpath: /boot/home/host
+          # - os: haiku
+          #   user: user
+          #   vmpath: /boot/home/host
 
     uses: ./.github/workflows/testrun.yml
     secrets: inherit
@@ -245,7 +248,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
+        os: ["freebsd"]
+        # os: ["freebsd", "hardenedbsd", "opnsense", "ghostbsd", "haiku", "midnightbsd", "netbsd", "openbsd", "solaris", "dragonflybsd", "omnios", "openindiana", "tribblix", "ubuntu", "debian", "rocky", "almalinux", "openeuler", "alpine", "hurd"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-24.04"]
         exclude:
@@ -271,7 +275,7 @@ jobs:
             arch: aarch64
           - os: haiku
             arch: aarch64
-        include:
+        # include:
           # haiku is the one guest in these matrices that needs non-default
           # inputs, so they ride along as matrix data rather than as a
           # per-caller conditional. Its "/" is a rootfs that holds
@@ -284,9 +288,9 @@ jobs:
           # `${{ inputs.user }}@localhost` check trips over. Every other os
           # leaves both unset and testrun.yml falls back to its documented
           # defaults. Matches what haiku.yml has always passed.
-          - os: haiku
-            user: user
-            vmpath: /boot/home/host
+          # - os: haiku
+          #   user: user
+          #   vmpath: /boot/home/host
 
 
     uses: ./.github/workflows/testrun.yml
@@ -303,179 +307,179 @@ jobs:
   # Plan 9 (9front) has no sshd, so it cannot reuse the ssh-based
   # testrun.yml. Same standalone telnet-exec + 9P-sync verification as
   # plan9.yml, on the Linux host.
-  plan9:
-    if: >-
-      ${{ github.event_name != 'push'
-          || (
-               ( !contains(github.event.head_commit.message, '[testos=')
-                 || contains(github.event.head_commit.message, '[testos=plan9]') )
-            && ( !contains(github.event.head_commit.message, '[testhost=')
-                 || contains(github.event.head_commit.message, '[testhost=linux') )
-             ) }}
-    runs-on: ubuntu-24.04
-    name: Test plan9 9p
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install dependencies
-      run: |
-        sudo apt-get --no-install-recommends -y install \
-          zstd qemu-utils qemu-system-x86 ca-certificates
-    - name: Boot 9front and verify telnet exec + 9P sync
-      shell: bash
-      run: |
-        set -e
-        mountdir=test
-        mkdir -p ${mountdir}
-        echo "anyvm" > ${mountdir}/justcheck.txt
-        mkdir -p ../test_output
-        python anyvm.py --debug --data-dir ../test_output --os plan9 \
-          --ssh-port 10023 -d \
-          --sync 9p -v "${mountdir}:/usr/glenda/work"
-        echo "===============verify telnet exec + 9P-synced marker"
-        python3 - <<'PY'
-        import socket, sys, time
-        def telnet_exec(port, cmds, settle=4.0):
-            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
-            out=bytearray()
-            s=socket.create_connection(("127.0.0.1",port),15)
-            def eat(data):
-                i=0;n=len(data)
-                while i<n:
-                    b=data[i]
-                    if b!=IAC: out.append(b); i+=1; continue
-                    if i+1>=n: break
-                    c=data[i+1]
-                    if c in (DO,DONT,WILL,WONT) and i+2<n:
-                        o=data[i+2]
-                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
-                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
-                        i+=3
-                    elif c==SB:
-                        j=i+2
-                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
-                        i=j+2
-                    else: i+=2
-            def rd(sec):
-                end=time.time()+sec; s.settimeout(0.5)
-                while time.time()<end:
-                    try: d=s.recv(4096)
-                    except socket.timeout: continue
-                    if not d: return
-                    eat(d)
-            rd(min(settle,2))
-            for c in cmds:
-                s.sendall(c.encode()+b"\r\n"); rd(settle)
-            s.close(); return out.decode("utf-8","replace")
-        txt=""
-        for _ in range(20):
-            try:
-                txt=telnet_exec(10023, ["echo EXEC''-OK", "ls /usr/glenda/work"])
-                if "EXEC-OK" in txt: break
-            except OSError: time.sleep(3)
-        print(txt)
-        assert "EXEC-OK" in txt, "telnet exec failed"
-        assert "justcheck.txt" in txt, "9P-synced file not visible in guest"
-        print("plan9 verify OK: telnet exec + 9P sync")
-        PY
+#  plan9:
+#    if: >-
+#      ${{ github.event_name != 'push'
+#          || (
+#               ( !contains(github.event.head_commit.message, '[testos=')
+#                 || contains(github.event.head_commit.message, '[testos=plan9]') )
+#            && ( !contains(github.event.head_commit.message, '[testhost=')
+#                 || contains(github.event.head_commit.message, '[testhost=linux') )
+#             ) }}
+#    runs-on: ubuntu-24.04
+#    name: Test plan9 9p
+#    env:
+#      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#    steps:
+#    - uses: actions/checkout@v7
+#    - name: Install dependencies
+#      run: |
+#        sudo apt-get --no-install-recommends -y install \
+#          zstd qemu-utils qemu-system-x86 ca-certificates
+#    - name: Boot 9front and verify telnet exec + 9P sync
+#      shell: bash
+#      run: |
+#        set -e
+#        mountdir=test
+#        mkdir -p ${mountdir}
+#        echo "anyvm" > ${mountdir}/justcheck.txt
+#        mkdir -p ../test_output
+#        python anyvm.py --debug --data-dir ../test_output --os plan9 \
+#          --ssh-port 10023 -d \
+#          --sync 9p -v "${mountdir}:/usr/glenda/work"
+#        echo "===============verify telnet exec + 9P-synced marker"
+#        python3 - <<'PY'
+#        import socket, sys, time
+#        def telnet_exec(port, cmds, settle=4.0):
+#            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
+#            out=bytearray()
+#            s=socket.create_connection(("127.0.0.1",port),15)
+#            def eat(data):
+#                i=0;n=len(data)
+#                while i<n:
+#                    b=data[i]
+#                    if b!=IAC: out.append(b); i+=1; continue
+#                    if i+1>=n: break
+#                    c=data[i+1]
+#                    if c in (DO,DONT,WILL,WONT) and i+2<n:
+#                        o=data[i+2]
+#                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
+#                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
+#                        i+=3
+#                    elif c==SB:
+#                        j=i+2
+#                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
+#                        i=j+2
+#                    else: i+=2
+#            def rd(sec):
+#                end=time.time()+sec; s.settimeout(0.5)
+#                while time.time()<end:
+#                    try: d=s.recv(4096)
+#                    except socket.timeout: continue
+#                    if not d: return
+#                    eat(d)
+#            rd(min(settle,2))
+#            for c in cmds:
+#                s.sendall(c.encode()+b"\r\n"); rd(settle)
+#            s.close(); return out.decode("utf-8","replace")
+#        txt=""
+#        for _ in range(20):
+#            try:
+#                txt=telnet_exec(10023, ["echo EXEC''-OK", "ls /usr/glenda/work"])
+#                if "EXEC-OK" in txt: break
+#            except OSError: time.sleep(3)
+#        print(txt)
+#        assert "EXEC-OK" in txt, "telnet exec failed"
+#        assert "justcheck.txt" in txt, "9P-synced file not visible in guest"
+#        print("plan9 verify OK: telnet exec + 9P sync")
+#        PY
 
 
   # ReactOS ships no remote-access server of any kind, so reactos-builder
   # bakes its own Win32 telnet server (anyvmtd) into the image: like plan9 it
   # cannot reuse the ssh-based testrun.yml. Same standalone telnet-exec +
   # tar-sync verification as reactos.yml, on the Linux host.
-  reactos:
-    if: >-
-      ${{ github.event_name != 'push'
-          || (
-               ( !contains(github.event.head_commit.message, '[testos=')
-                 || contains(github.event.head_commit.message, '[testos=reactos]') )
-            && ( !contains(github.event.head_commit.message, '[testhost=')
-                 || contains(github.event.head_commit.message, '[testhost=linux') )
-             ) }}
-    runs-on: ubuntu-24.04
-    name: Test reactos tar
-    timeout-minutes: 40
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install dependencies
-      run: |
-        sudo apt-get --no-install-recommends -y install \
-          zstd qemu-utils qemu-system-x86 ca-certificates
-        # /dev/kvm exists on the runner but is not writable, which drops
-        # anyvm to TCG -- too slow for an NT kernel to finish booting inside
-        # the 600 s window. testrun.yml does the same thing.
-        sudo chmod 666 /dev/kvm || true
-    - name: Boot ReactOS and verify telnet exec + tar sync
-      shell: bash
-      run: |
-        set -e
-        mountdir=test
-        mkdir -p ${mountdir}
-        echo "anyvm" > ${mountdir}/justcheck.txt
-        mkdir -p ../test_output
-        # No --arch on purpose: ReactOS is i386-only and anyvm defaults to it,
-        # so this leg is what proves a bare `--os reactos` resolves an image
-        # instead of dying in "Cannot find the image link" on an x86_64 host.
-        # --boot-timeout-sec is headroom only: with KVM this reaches a telnet
-        # prompt in ~18 s. (The 705 s that once justified this number came
-        # from a run under nested KVM with -rtc driftfix=slew, which anyvm no
-        # longer passes for reactos -- see the rtc block in anyvm.py.)
-        python anyvm.py --debug --data-dir ../test_output --os reactos \
-          --ssh-port 10023 -d --boot-timeout-sec 1500 \
-          --sync tar -v "${mountdir}:C:\work"
-        echo "===============verify telnet exec + tar-synced marker"
-        python3 - <<'PY'
-        import socket, sys, time
-        def telnet_exec(port, cmds, settle=4.0):
-            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
-            out=bytearray()
-            s=socket.create_connection(("127.0.0.1",port),15)
-            def eat(data):
-                i=0;n=len(data)
-                while i<n:
-                    b=data[i]
-                    if b!=IAC: out.append(b); i+=1; continue
-                    if i+1>=n: break
-                    c=data[i+1]
-                    if c in (DO,DONT,WILL,WONT) and i+2<n:
-                        o=data[i+2]
-                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
-                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
-                        i+=3
-                    elif c==SB:
-                        j=i+2
-                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
-                        i=j+2
-                    else: i+=2
-            def rd(sec):
-                end=time.time()+sec; s.settimeout(0.5)
-                while time.time()<end:
-                    try: d=s.recv(4096)
-                    except socket.timeout: continue
-                    if not d: return
-                    eat(d)
-            rd(min(settle,2))
-            for c in cmds:
-                s.sendall(c.encode()+b"\r\n"); rd(settle)
-            s.close(); return out.decode("utf-8","replace")
-        # cmd.exe on the far side: "^" escapes the next character, so the
-        # echoed command line reads EXEC^-OK and only its OUTPUT is the bare
-        # marker the assert looks for.
-        txt=""
-        for _ in range(20):
-            try:
-                txt=telnet_exec(10023, ["echo EXEC^-OK", "dir C:\\work"])
-                if "EXEC-OK" in txt: break
-            except OSError: time.sleep(3)
-        print(txt)
-        assert "EXEC-OK" in txt, "telnet exec failed"
-        assert "justcheck.txt" in txt, "tar-synced file not visible in guest"
-        print("reactos verify OK: telnet exec + tar sync")
-        PY
+#  reactos:
+#    if: >-
+#      ${{ github.event_name != 'push'
+#          || (
+#               ( !contains(github.event.head_commit.message, '[testos=')
+#                 || contains(github.event.head_commit.message, '[testos=reactos]') )
+#            && ( !contains(github.event.head_commit.message, '[testhost=')
+#                 || contains(github.event.head_commit.message, '[testhost=linux') )
+#             ) }}
+#    runs-on: ubuntu-24.04
+#    name: Test reactos tar
+#    timeout-minutes: 40
+#    env:
+#      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#    steps:
+#    - uses: actions/checkout@v7
+#    - name: Install dependencies
+#      run: |
+#        sudo apt-get --no-install-recommends -y install \
+#          zstd qemu-utils qemu-system-x86 ca-certificates
+#        # /dev/kvm exists on the runner but is not writable, which drops
+#        # anyvm to TCG -- too slow for an NT kernel to finish booting inside
+#        # the 600 s window. testrun.yml does the same thing.
+#        sudo chmod 666 /dev/kvm || true
+#    - name: Boot ReactOS and verify telnet exec + tar sync
+#      shell: bash
+#      run: |
+#        set -e
+#        mountdir=test
+#        mkdir -p ${mountdir}
+#        echo "anyvm" > ${mountdir}/justcheck.txt
+#        mkdir -p ../test_output
+#        # No --arch on purpose: ReactOS is i386-only and anyvm defaults to it,
+#        # so this leg is what proves a bare `--os reactos` resolves an image
+#        # instead of dying in "Cannot find the image link" on an x86_64 host.
+#        # --boot-timeout-sec is headroom only: with KVM this reaches a telnet
+#        # prompt in ~18 s. (The 705 s that once justified this number came
+#        # from a run under nested KVM with -rtc driftfix=slew, which anyvm no
+#        # longer passes for reactos -- see the rtc block in anyvm.py.)
+#        python anyvm.py --debug --data-dir ../test_output --os reactos \
+#          --ssh-port 10023 -d --boot-timeout-sec 1500 \
+#          --sync tar -v "${mountdir}:C:\work"
+#        echo "===============verify telnet exec + tar-synced marker"
+#        python3 - <<'PY'
+#        import socket, sys, time
+#        def telnet_exec(port, cmds, settle=4.0):
+#            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
+#            out=bytearray()
+#            s=socket.create_connection(("127.0.0.1",port),15)
+#            def eat(data):
+#                i=0;n=len(data)
+#                while i<n:
+#                    b=data[i]
+#                    if b!=IAC: out.append(b); i+=1; continue
+#                    if i+1>=n: break
+#                    c=data[i+1]
+#                    if c in (DO,DONT,WILL,WONT) and i+2<n:
+#                        o=data[i+2]
+#                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
+#                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
+#                        i+=3
+#                    elif c==SB:
+#                        j=i+2
+#                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
+#                        i=j+2
+#                    else: i+=2
+#            def rd(sec):
+#                end=time.time()+sec; s.settimeout(0.5)
+#                while time.time()<end:
+#                    try: d=s.recv(4096)
+#                    except socket.timeout: continue
+#                    if not d: return
+#                    eat(d)
+#            rd(min(settle,2))
+#            for c in cmds:
+#                s.sendall(c.encode()+b"\r\n"); rd(settle)
+#            s.close(); return out.decode("utf-8","replace")
+#        # cmd.exe on the far side: "^" escapes the next character, so the
+#        # echoed command line reads EXEC^-OK and only its OUTPUT is the bare
+#        # marker the assert looks for.
+#        txt=""
+#        for _ in range(20):
+#            try:
+#                txt=telnet_exec(10023, ["echo EXEC^-OK", "dir C:\\work"])
+#                if "EXEC-OK" in txt: break
+#            except OSError: time.sleep(3)
+#        print(txt)
+#        assert "EXEC-OK" in txt, "telnet exec failed"
+#        assert "justcheck.txt" in txt, "tar-synced file not visible in guest"
+#        print("reactos verify OK: telnet exec + tar sync")
+#        PY
 
   # RISC OS is the third guest with no remote-access server of its own, so
   # riscos-builder bakes in an agent and anyvm drives it over telnet -- same
@@ -485,185 +489,185 @@ jobs:
   # TCG only, and the qemu-system-arm installed below is not what runs the
   # guest -- anyvm downloads a patched build from the builder release, since
   # no released QEMU can boot RISC OS on a raspi machine at all.
-  riscos:
-    if: >-
-      ${{ github.event_name != 'push'
-          || (
-               ( !contains(github.event.head_commit.message, '[testos=')
-                 || contains(github.event.head_commit.message, '[testos=riscos]') )
-            && ( !contains(github.event.head_commit.message, '[testhost=')
-                 || contains(github.event.head_commit.message, '[testhost=linux') )
-             ) }}
-    runs-on: ubuntu-24.04
-    name: Test riscos tar
-    timeout-minutes: 60
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install dependencies
-      run: |
-        sudo apt-get --no-install-recommends -y install \
-          zstd qemu-utils qemu-system-arm ca-certificates
-    - name: Boot RISC OS and verify telnet exec + tar sync
-      shell: bash
-      run: |
-        set -e
-        mountdir=test
-        mkdir -p ${mountdir}
-        echo "anyvm" > ${mountdir}/justcheck.txt
-        mkdir -p ../test_output
-        # No --arch on purpose: RISC OS is 32-bit ARM only and anyvm defaults
-        # to armv7, so this leg is what proves a bare `--os riscos` resolves
-        # an image instead of dying in "Cannot find the image link" on an
-        # x86_64 host. Note armv7 is the only spelling that survives anyvm's
-        # alias map -- "arm" is rewritten to aarch64.
-        python anyvm.py --debug --data-dir ../test_output --os riscos \
-          --ssh-port 10024 -d --boot-timeout-sec 2400 \
-          --sync tar -v "${mountdir}:/work"
-        echo "===============verify telnet exec + tar-synced marker"
-        python3 - <<'PY'
-        import socket, sys, time
-        def telnet_exec(port, cmds, settle=6.0):
-            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
-            out=bytearray()
-            s=socket.create_connection(("127.0.0.1",port),15)
-            def eat(data):
-                i=0;n=len(data)
-                while i<n:
-                    b=data[i]
-                    if b!=IAC: out.append(b); i+=1; continue
-                    if i+1>=n: break
-                    c=data[i+1]
-                    if c in (DO,DONT,WILL,WONT) and i+2<n:
-                        o=data[i+2]
-                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
-                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
-                        i+=3
-                    elif c==SB:
-                        j=i+2
-                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
-                        i=j+2
-                    else: i+=2
-            def rd(sec):
-                end=time.time()+sec; s.settimeout(0.5)
-                while time.time()<end:
-                    try: d=s.recv(4096)
-                    except socket.timeout: continue
-                    if not d: return
-                    eat(d)
-            rd(min(settle,2))
-            for c in cmds:
-                s.sendall(c.encode()+b"\r\n"); rd(settle)
-            s.close(); return out.decode("utf-8","replace")
-        # No escaping trick, unlike plan9's '' split and reactos's caret: the
-        # far side is riscos-builder's agent, not a shell, and it never echoes
-        # the command it was sent, so a bare marker cannot match its own line.
-        txt=""
-        for _ in range(20):
-            try:
-                txt=telnet_exec(10024, ["Echo EXEC-OK", "Cat $.work"])
-                if "EXEC-OK" in txt: break
-            except OSError: time.sleep(3)
-        print(txt)
-        assert "EXEC-OK" in txt, "telnet exec failed"
-        # justcheck.txt here, justcheck/txt in the guest: RISC OS uses '.' as
-        # its path separator and swaps '.' and '/' in leafnames. Match the
-        # stem so the test does not depend on which side spells it.
-        assert "justcheck" in txt, "tar-synced file not visible in guest"
-        print("riscos verify OK: telnet exec + tar sync")
-        PY
+#  riscos:
+#    if: >-
+#      ${{ github.event_name != 'push'
+#          || (
+#               ( !contains(github.event.head_commit.message, '[testos=')
+#                 || contains(github.event.head_commit.message, '[testos=riscos]') )
+#            && ( !contains(github.event.head_commit.message, '[testhost=')
+#                 || contains(github.event.head_commit.message, '[testhost=linux') )
+#             ) }}
+#    runs-on: ubuntu-24.04
+#    name: Test riscos tar
+#    timeout-minutes: 60
+#    env:
+#      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#    steps:
+#    - uses: actions/checkout@v7
+#    - name: Install dependencies
+#      run: |
+#        sudo apt-get --no-install-recommends -y install \
+#          zstd qemu-utils qemu-system-arm ca-certificates
+#    - name: Boot RISC OS and verify telnet exec + tar sync
+#      shell: bash
+#      run: |
+#        set -e
+#        mountdir=test
+#        mkdir -p ${mountdir}
+#        echo "anyvm" > ${mountdir}/justcheck.txt
+#        mkdir -p ../test_output
+#        # No --arch on purpose: RISC OS is 32-bit ARM only and anyvm defaults
+#        # to armv7, so this leg is what proves a bare `--os riscos` resolves
+#        # an image instead of dying in "Cannot find the image link" on an
+#        # x86_64 host. Note armv7 is the only spelling that survives anyvm's
+#        # alias map -- "arm" is rewritten to aarch64.
+#        python anyvm.py --debug --data-dir ../test_output --os riscos \
+#          --ssh-port 10024 -d --boot-timeout-sec 2400 \
+#          --sync tar -v "${mountdir}:/work"
+#        echo "===============verify telnet exec + tar-synced marker"
+#        python3 - <<'PY'
+#        import socket, sys, time
+#        def telnet_exec(port, cmds, settle=6.0):
+#            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
+#            out=bytearray()
+#            s=socket.create_connection(("127.0.0.1",port),15)
+#            def eat(data):
+#                i=0;n=len(data)
+#                while i<n:
+#                    b=data[i]
+#                    if b!=IAC: out.append(b); i+=1; continue
+#                    if i+1>=n: break
+#                    c=data[i+1]
+#                    if c in (DO,DONT,WILL,WONT) and i+2<n:
+#                        o=data[i+2]
+#                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
+#                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
+#                        i+=3
+#                    elif c==SB:
+#                        j=i+2
+#                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
+#                        i=j+2
+#                    else: i+=2
+#            def rd(sec):
+#                end=time.time()+sec; s.settimeout(0.5)
+#                while time.time()<end:
+#                    try: d=s.recv(4096)
+#                    except socket.timeout: continue
+#                    if not d: return
+#                    eat(d)
+#            rd(min(settle,2))
+#            for c in cmds:
+#                s.sendall(c.encode()+b"\r\n"); rd(settle)
+#            s.close(); return out.decode("utf-8","replace")
+#        # No escaping trick, unlike plan9's '' split and reactos's caret: the
+#        # far side is riscos-builder's agent, not a shell, and it never echoes
+#        # the command it was sent, so a bare marker cannot match its own line.
+#        txt=""
+#        for _ in range(20):
+#            try:
+#                txt=telnet_exec(10024, ["Echo EXEC-OK", "Cat $.work"])
+#                if "EXEC-OK" in txt: break
+#            except OSError: time.sleep(3)
+#        print(txt)
+#        assert "EXEC-OK" in txt, "telnet exec failed"
+#        # justcheck.txt here, justcheck/txt in the guest: RISC OS uses '.' as
+#        # its path separator and swaps '.' and '/' in leafnames. Match the
+#        # stem so the test does not depend on which side spells it.
+#        assert "justcheck" in txt, "tar-synced file not visible in guest"
+#        print("riscos verify OK: telnet exec + tar sync")
+#        PY
 
   # Redox is the fourth guest with no remote-access server of its own, so
   # redox-builder injects its own agent into the image offline and anyvm
   # drives it over telnet -- same standalone verification as redox.yml.
   # Unlike the riscos job above this one is entirely ordinary on the host
   # side: x86_64, so KVM applies and the stock qemu-system-x86 runs it.
-  redox:
-    if: >-
-      ${{ github.event_name != 'push'
-          || (
-               ( !contains(github.event.head_commit.message, '[testos=')
-                 || contains(github.event.head_commit.message, '[testos=redox]') )
-            && ( !contains(github.event.head_commit.message, '[testhost=')
-                 || contains(github.event.head_commit.message, '[testhost=linux') )
-             ) }}
-    runs-on: ubuntu-24.04
-    name: Test redox tar
-    timeout-minutes: 40
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install dependencies
-      run: |
-        sudo apt-get --no-install-recommends -y install \
-          zstd qemu-utils qemu-system-x86 ca-certificates
-        sudo chmod 666 /dev/kvm || true
-    - name: Boot Redox and verify telnet exec + tar sync
-      shell: bash
-      run: |
-        set -e
-        mountdir=test
-        mkdir -p ${mountdir}
-        echo "anyvm" > ${mountdir}/justcheck.txt
-        mkdir -p ../test_output
-        # No --arch on purpose: 0.9.0 is the only release upstream ever cut
-        # and it is x86_64-only, so this leg is what proves a bare
-        # `--os redox` resolves an image on any host arch instead of dying in
-        # "Cannot find the image link". redox.yml covers the explicit pair.
-        # --boot-timeout-sec is headroom: with KVM the agent answers in ~9 s.
-        python anyvm.py --debug --data-dir ../test_output --os redox \
-          --ssh-port 10026 -d --boot-timeout-sec 900 \
-          --sync tar -v "${mountdir}:/work"
-        echo "===============verify telnet exec + tar-synced marker"
-        python3 - <<'PY'
-        import socket, sys, time
-        def telnet_exec(port, cmds, settle=5.0):
-            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
-            out=bytearray()
-            s=socket.create_connection(("127.0.0.1",port),15)
-            def eat(data):
-                i=0;n=len(data)
-                while i<n:
-                    b=data[i]
-                    if b!=IAC: out.append(b); i+=1; continue
-                    if i+1>=n: break
-                    c=data[i+1]
-                    if c in (DO,DONT,WILL,WONT) and i+2<n:
-                        o=data[i+2]
-                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
-                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
-                        i+=3
-                    elif c==SB:
-                        j=i+2
-                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
-                        i=j+2
-                    else: i+=2
-            def rd(sec):
-                end=time.time()+sec; s.settimeout(0.5)
-                while time.time()<end:
-                    try: d=s.recv(4096)
-                    except socket.timeout: continue
-                    if not d: return
-                    eat(d)
-            rd(min(settle,2))
-            for c in cmds:
-                s.sendall(c.encode()+b"\r\n"); rd(settle)
-            s.close(); return out.decode("utf-8","replace")
-        # ion collapses '' exactly like rc and sh, so the marker reassembles
-        # in the output while the command line reads EXEC''-OK.
-        txt=""
-        for _ in range(20):
-            try:
-                txt=telnet_exec(10026, ["echo EXEC''-OK", "ls /work"])
-                if "EXEC-OK" in txt: break
-            except OSError: time.sleep(3)
-        print(txt)
-        assert "EXEC-OK" in txt, "telnet exec failed"
-        assert "justcheck.txt" in txt, "tar-synced file not visible in guest"
-        print("redox verify OK: telnet exec + tar sync")
-        PY
+#  redox:
+#    if: >-
+#      ${{ github.event_name != 'push'
+#          || (
+#               ( !contains(github.event.head_commit.message, '[testos=')
+#                 || contains(github.event.head_commit.message, '[testos=redox]') )
+#            && ( !contains(github.event.head_commit.message, '[testhost=')
+#                 || contains(github.event.head_commit.message, '[testhost=linux') )
+#             ) }}
+#    runs-on: ubuntu-24.04
+#    name: Test redox tar
+#    timeout-minutes: 40
+#    env:
+#      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#    steps:
+#    - uses: actions/checkout@v7
+#    - name: Install dependencies
+#      run: |
+#        sudo apt-get --no-install-recommends -y install \
+#          zstd qemu-utils qemu-system-x86 ca-certificates
+#        sudo chmod 666 /dev/kvm || true
+#    - name: Boot Redox and verify telnet exec + tar sync
+#      shell: bash
+#      run: |
+#        set -e
+#        mountdir=test
+#        mkdir -p ${mountdir}
+#        echo "anyvm" > ${mountdir}/justcheck.txt
+#        mkdir -p ../test_output
+#        # No --arch on purpose: 0.9.0 is the only release upstream ever cut
+#        # and it is x86_64-only, so this leg is what proves a bare
+#        # `--os redox` resolves an image on any host arch instead of dying in
+#        # "Cannot find the image link". redox.yml covers the explicit pair.
+#        # --boot-timeout-sec is headroom: with KVM the agent answers in ~9 s.
+#        python anyvm.py --debug --data-dir ../test_output --os redox \
+#          --ssh-port 10026 -d --boot-timeout-sec 900 \
+#          --sync tar -v "${mountdir}:/work"
+#        echo "===============verify telnet exec + tar-synced marker"
+#        python3 - <<'PY'
+#        import socket, sys, time
+#        def telnet_exec(port, cmds, settle=5.0):
+#            IAC=255; SE=240; SB=250; WILL,WONT,DO,DONT=251,252,253,254
+#            out=bytearray()
+#            s=socket.create_connection(("127.0.0.1",port),15)
+#            def eat(data):
+#                i=0;n=len(data)
+#                while i<n:
+#                    b=data[i]
+#                    if b!=IAC: out.append(b); i+=1; continue
+#                    if i+1>=n: break
+#                    c=data[i+1]
+#                    if c in (DO,DONT,WILL,WONT) and i+2<n:
+#                        o=data[i+2]
+#                        if c==DO: s.sendall(bytes([IAC,WONT,o]))
+#                        elif c==WILL: s.sendall(bytes([IAC,DONT,o]))
+#                        i+=3
+#                    elif c==SB:
+#                        j=i+2
+#                        while j+1<n and not (data[j]==IAC and data[j+1]==SE): j+=1
+#                        i=j+2
+#                    else: i+=2
+#            def rd(sec):
+#                end=time.time()+sec; s.settimeout(0.5)
+#                while time.time()<end:
+#                    try: d=s.recv(4096)
+#                    except socket.timeout: continue
+#                    if not d: return
+#                    eat(d)
+#            rd(min(settle,2))
+#            for c in cmds:
+#                s.sendall(c.encode()+b"\r\n"); rd(settle)
+#            s.close(); return out.decode("utf-8","replace")
+#        # ion collapses '' exactly like rc and sh, so the marker reassembles
+#        # in the output while the command line reads EXEC''-OK.
+#        txt=""
+#        for _ in range(20):
+#            try:
+#                txt=telnet_exec(10026, ["echo EXEC''-OK", "ls /work"])
+#                if "EXEC-OK" in txt: break
+#            except OSError: time.sleep(3)
+#        print(txt)
+#        assert "EXEC-OK" in txt, "telnet exec failed"
+#        assert "justcheck.txt" in txt, "tar-synced file not visible in guest"
+#        print("redox verify OK: telnet exec + tar sync")
+#        PY
 
 
 

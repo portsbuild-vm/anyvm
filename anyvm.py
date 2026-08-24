@@ -142,32 +142,7 @@ OPENBSD_E1000_RELEASES = {"7.3", "7.4", "7.5", "7.6"}
 
 
 DEFAULT_BUILDER_VERSIONS = {
-    "freebsd": "2.2.6",
-    "hardenedbsd": "2.0.1",
-    "openbsd": "2.1.0",
-    "netbsd": "2.2.3",
-    "dragonflybsd": "2.0.7",
-    "solaris": "2.0.7",
-    "omnios": "2.1.3",
-    "haiku": "2.0.2",
-    "midnightbsd": "2.0.7",
-    "tribblix": "2.0.7",
-    "openindiana": "2.1.2",
-    "ubuntu": "2.0.9",
-    "openeuler": "2.0.2",
-    "alpine": "2.0.1",
-    "debian": "2.0.0",
-    "rocky": "2.0.0",
-    "almalinux": "2.0.0",
-    "ghostbsd": "2.0.8",
-    "blissos": "2.0.3",
-    "hurd": "2.0.1",
-    "plan9": "2.0.1",
-    "nextbsd": "2.0.1",
-    "opnsense": "2.0.0",
-    "reactos": "2.0.2",
-    "riscos": "2.0.0",
-    "redox": "2.0.1"
+    "freebsd": "2.2.6"
 }
 
 # Pinned, self-contained QEMU builds published as release assets by
@@ -237,7 +212,7 @@ RISCOS_ROM_ASSET = "RISCOS.IMG"
 # `--sync nfs` (alias: mynfs); `--sync sys-nfs` forces the host kernel NFS
 # server instead.
 MYNFSD_VERSION = "0.1.0"
-MYNFSD_URL = ("https://github.com/anyvm-org/nfsd/releases/download/"
+MYNFSD_URL = ("https://github.com/portsbuild-vm/nfsd/releases/download/"
               "v{}/nfsd.py".format(MYNFSD_VERSION))
 
 VERSION_TOKEN_RE = re.compile(r"[0-9]+|[A-Za-z]+")
@@ -8097,8 +8072,8 @@ def main():
         else:
             config['vga'] = "virtio"
 
-    arepo = "vmactions/{}-builder".format(config['os'])
-    brepo = "anyvm-org/{}-builder".format(config['os'])
+    arepo = "portsbuild-vm/{}-builder".format(config['os'])
+    brepo = "portsbuild-vm/{}-builder".format(config['os'])
     if config['builder']:
         builder_repo = brepo if cmp_version(config['builder'], "2.0.0") >= 0 else arepo
         release_repo_candidates = [builder_repo]

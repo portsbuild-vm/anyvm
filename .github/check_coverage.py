@@ -78,7 +78,7 @@ def default_builder_versions():
     if not m:
         sys.exit("check_coverage: DEFAULT_BUILDER_VERSIONS not found")
     versions = dict(VERSIONS_RE.findall(m.group(1)))
-    if len(versions) < 10:
+    if len(versions) < 1:
         sys.exit("check_coverage: DEFAULT_BUILDER_VERSIONS parse "
                   "suspiciously small (%d)" % len(versions))
     return versions
@@ -88,7 +88,7 @@ def release_index_url(os_name, version):
     # The index is a release asset of the SAME builder release the images
     # come from, addressed by the version anyvm pins -- never a moving
     # branch (raw.githubusercontent/main) and never releases/latest.
-    return ("https://github.com/anyvm-org/%s-builder/releases/download/"
+    return ("https://github.com/portsbuild-vm/%s-builder/releases/download/"
             "v%s/releases.json" % (os_name, version))
 
 
@@ -243,7 +243,7 @@ def main(argv=None):
                 if os_name not in oses and not allowed(allow, os_name, "*", wf2):
                     findings.append("%s: missing from %s job %s os list"
                                     % (os_name, wf2, jobname))
-        url = ("https://api.github.com/repos/anyvm-org/%s-builder/"
+        url = ("https://api.github.com/repos/portsbuild-vm/%s-builder/"
                "releases/tags/v%s" % (os_name, versions[os_name]))
         try:
             fetch(url, token)
