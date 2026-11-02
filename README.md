@@ -24,7 +24,8 @@ anyvm is a single-file tool for bootstrapping BSD, Illumos, Linux, Haiku, GNU Hu
   sudo apt-get --no-install-recommends -y install \
   zstd ovmf xz-utils qemu-utils ca-certificates \
   qemu-system-x86 qemu-system-arm qemu-efi-aarch64 \
-  qemu-efi-riscv64 qemu-system-riscv64 qemu-system-misc u-boot-qemu \
+  qemu-efi-riscv64 qemu-system-misc u-boot-qemu \
+  $(apt-cache show qemu-system-riscv >/dev/null 2>&1 && echo qemu-system-riscv) \
   qemu-system-ppc qemu-system-s390x qemu-system-sparc \
   openssh-client
   
@@ -110,11 +111,11 @@ python3 anyvm.py --os alpine --release 3.24 --arch aarch64
 python3 anyvm.py --os alpine --release 3.24 --arch riscv64
 python3 anyvm.py --os almalinux
 python3 anyvm.py --os almalinux --release 10 --arch ppc64le
-python3 anyvm.py --os rocky
-python3 anyvm.py --os rocky --release 9
-python3 anyvm.py --os rocky --release 10 --arch aarch64
-python3 anyvm.py --os rocky --release 10 --arch ppc64le
-python3 anyvm.py --os rocky --release 10 --arch s390x
+python3 anyvm.py --os rockylinux
+python3 anyvm.py --os rockylinux --release 9
+python3 anyvm.py --os rockylinux --release 10 --arch aarch64
+python3 anyvm.py --os rockylinux --release 10 --arch ppc64le
+python3 anyvm.py --os rockylinux --release 10 --arch s390x
 python3 anyvm.py --os debian
 python3 anyvm.py --os debian --release 13
 python3 anyvm.py --os debian --release 13 --arch aarch64
@@ -205,7 +206,7 @@ More examples and tags: https://github.com/anyvm-org/docker
 | Ubuntu<br>[![Test Ubuntu](https://github.com/anyvm-org/anyvm/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/ubuntu.yml) | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | [![Build Ubuntu](https://github.com/anyvm-org/ubuntu-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/ubuntu-builder) |
 | OpenEuler<br>[![Test openEuler](https://github.com/anyvm-org/anyvm/actions/workflows/openeuler.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/openeuler.yml) | ✅ | ✅ | ✅ | — | — | — | ✅ | [![Build openEuler](https://github.com/anyvm-org/openeuler-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/openeuler-builder) |
 | Debian<br>[![Test Debian](https://github.com/anyvm-org/anyvm/actions/workflows/debian.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/debian.yml) | ✅ | ✅ | ✅ (13 only) | ✅ (ppc64le) | — | — | — | [![Build Debian](https://github.com/anyvm-org/debian-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/debian-builder) |
-| Rocky Linux<br>[![Test Rocky](https://github.com/anyvm-org/anyvm/actions/workflows/rocky.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/rocky.yml) | ✅ | ✅ | — | ✅ (ppc64le, 10 only) | — | ✅ | — | [![Build Rocky](https://github.com/anyvm-org/rocky-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/rocky-builder) |
+| Rocky Linux<br>[![Test Rocky Linux](https://github.com/anyvm-org/anyvm/actions/workflows/rockylinux.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/rockylinux.yml) | ✅ | ✅ | — | ✅ (ppc64le, 10 only) | — | ✅ | — | [![Build Rocky Linux](https://github.com/anyvm-org/rockylinux-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/rockylinux-builder) |
 | AlmaLinux<br>[![Test AlmaLinux](https://github.com/anyvm-org/anyvm/actions/workflows/almalinux.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/almalinux.yml) | ✅ | ✅ | — | ✅ (ppc64le, 10 only) | — | ✅ | — | [![Build AlmaLinux](https://github.com/anyvm-org/almalinux-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/almalinux-builder) |
 | Alpine<br>[![Test Alpine](https://github.com/anyvm-org/anyvm/actions/workflows/alpine.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/alpine.yml) | ✅ | ✅ | ✅ (3.24 only) | — | — | — | — | [![Build Alpine](https://github.com/anyvm-org/alpine-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/alpine-builder) |
 | FreeBSD<br>[![Test FreeBSD](https://github.com/anyvm-org/anyvm/actions/workflows/freebsd.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/freebsd.yml) | ✅ | ✅ | ✅ | ✅ | — | — | — | [![Build FreeBSD](https://github.com/anyvm-org/freebsd-builder/actions/workflows/build.yml/badge.svg)](https://github.com/anyvm-org/freebsd-builder) |
@@ -253,10 +254,18 @@ i386 guests (ReactOS, and Hurd's i386 image) follow the `x86_64 guests` column: 
 sudo apt-get --no-install-recommends -y install \
   zstd ovmf xz-utils qemu-utils ca-certificates \
   qemu-system-x86 qemu-system-arm qemu-efi-aarch64 \
-  qemu-efi-riscv64 qemu-system-riscv64 qemu-system-misc u-boot-qemu \
+  qemu-efi-riscv64 qemu-system-misc u-boot-qemu \
+  $(apt-cache show qemu-system-riscv >/dev/null 2>&1 && echo qemu-system-riscv) \
   qemu-system-ppc qemu-system-s390x qemu-system-sparc \
   ssh-client
 ```
+
+The `$(apt-cache show ...)` line adds `qemu-system-riscv` where it exists:
+from Ubuntu 25.10 / Debian 13 on, the riscv64 emulator ships in that
+package instead of `qemu-system-misc`, and older releases have no such
+package. Do not use `qemu-system-riscv64` or `qemu-system-aarch64` as
+package names: those are the binaries, and Ubuntu 26.04 has them only as
+virtual packages that apt refuses to install.
 
 ### 6.2 macOS [![MacOS](https://github.com/anyvm-org/anyvm/actions/workflows/testmacos.yml/badge.svg)](https://github.com/anyvm-org/anyvm/actions/workflows/testmacos.yml)
 
@@ -331,7 +340,7 @@ All examples below use `python3 anyvm.py ...`. You can also run `python3 anyvm.p
 ### Required
 
 - `--os <name>`: Target guest OS (required).
-  - Supported: `freebsd` / `hardenedbsd` / `opnsense` / `ghostbsd` / `openbsd` / `netbsd` / `dragonflybsd` / `midnightbsd` / `nextbsd` / `solaris` / `omnios` / `openindiana` / `tribblix` / `haiku` / `ubuntu` / `debian` / `rocky` / `almalinux` / `openeuler` / `alpine` / `blissos` / `hurd` / `plan9` / `reactos` / `riscos` / `redox`
+  - Supported: `freebsd` / `hardenedbsd` / `opnsense` / `ghostbsd` / `openbsd` / `netbsd` / `dragonflybsd` / `midnightbsd` / `nextbsd` / `solaris` / `omnios` / `openindiana` / `tribblix` / `haiku` / `ubuntu` / `debian` / `rockylinux` / `almalinux` / `openeuler` / `alpine` / `blissos` / `hurd` / `plan9` / `reactos` / `riscos` / `redox`
   - Example:
     - `python3 anyvm.py --os freebsd`
 
@@ -378,9 +387,11 @@ All examples below use `python3 anyvm.py ...`. You can also run `python3 anyvm.p
       `files/README.md`.
   - `openeuler --arch loongarch64` (always TCG, slow): needs the EDK2
     LoongArch firmware (`edk2-loongarch64-code.fd`), which QEMU only bundles
-    since 9.2. On Linux x86_64 hosts anyvm.py automatically downloads and
-    uses a pinned QEMU 10.2.3 whenever the system QEMU is too old -- no
-    manual setup needed.
+    since 9.2, and distro packages may leave out (Ubuntu 26.04's QEMU 10.2.1
+    has none). On Linux x86_64 hosts anyvm.py automatically downloads and
+    uses a pinned QEMU 10.2.3 whenever the system QEMU is too old or comes
+    without that firmware (unless `--firmware` is given) -- no manual setup
+    needed.
     [openeuler-builder](https://github.com/anyvm-org/openeuler-builder)
     compiles it from source in its release-files job and publishes it as a
     release asset; see its `files/README.md`.
@@ -390,6 +401,31 @@ All examples below use `python3 anyvm.py ...`. You can also run `python3 anyvm.p
     [openbsd-builder](https://github.com/anyvm-org/openbsd-builder) rebuilds
     it from source in its release-files job and publishes it as a release
     asset; see its `bios/README.md`.
+  - `--arch aarch64` on a host whose edk2 firmware is a 2025.08 or later
+    build (Ubuntu 26.04's `qemu-efi-aarch64` 2025.11, Fedora 43's
+    `edk2-aarch64` 20260213): builds 2025.08 - 2026.04 hang right after
+    their banner under `-cpu max`, the default CPU model for most aarch64
+    guests -- an LPA2 bug in ArmVirtQemu's early page tables,
+    tianocore/edk2#11962, fixed in edk2-stable202605 -- and on QEMU 10.2.1
+    2026.05 raises a `Synchronous Exception` when the loaders of FreeBSD 12.4
+    and openEuler 22.03 (GRUB 2.06) hand over to the kernel. anyvm.py reads
+    the build stamp from the host's `QEMU_EFI.fd` and, for those builds,
+    boots with Ubuntu 24.04's edk2 2024.02 firmware instead: the unmodified
+    `QEMU_EFI.fd` from Ubuntu's `qemu-efi-aarch64` 2024.02-2ubuntu0.9
+    package, published by
+    [anyvm-org/firmware](https://github.com/anyvm-org/firmware) and
+    downloaded once into the VM's directory (2 MB, sha256-pinned). An explicit
+    `--firmware` always wins, and it also takes a URL, so `--firmware
+    https://github.com/anyvm-org/firmware/releases/download/v0.0.2/QEMU_EFI-2024.02-2ubuntu0.9.fd`
+    forces that firmware on any host.
+  - `netbsd --release 9.x --arch aarch64` boots with `-machine ...,acpi=off`,
+    i.e. from the device tree: through ACPI, QEMU 10.2.1 hangs it right after
+    its interrupt controller attaches (with or without the GICv3 ITS, and on
+    GICv2 too).
+  - `freebsd --release 13.2 ... 14.3 --arch riscv64` runs on
+    `-cpu rv64,sstc=off` when QEMU is 10.1 or newer: with Sstc, QEMU 10.2.1
+    hangs those releases right after the last PCI device attaches (QEMU 8.2,
+    and FreeBSD 14.4 and later, are fine with it).
   - `netbsd --arch sparc64`: host-dir sync (`-v`) defaults to `scp`
     (override with `--sync`). The QEMU sun4u machine boots only off the
     CMD646 PCI IDE, whose TCG emulation loses interrupts under sustained
@@ -501,6 +537,13 @@ All examples below use `python3 anyvm.py ...`. You can also run `python3 anyvm.p
 
 - `--disktype <type>`: Disk interface type (e.g. `virtio`, `ide`).
   - Example: `python3 anyvm.py --os dragonflybsd --disktype ide`
+  - `redox` runs its IDE disk with `cache.no-flush=on`: Redox 0.9.0's IDE
+    driver gives every ATA command 1 s and flushes after each write, and
+    QEMU finishes a guest flush only once the host has synced the image, so
+    a host sync slower than that leaves the root filesystem unmountable
+    (reproduced locally by delaying one host sync by 1.5 s; the same error
+    broke the Redox CI job on ubuntu-26.04 runners). Guest writes still
+    reach the host page cache, so only a host crash could lose them.
 
 - `--boot-timeout-sec <n>`: Boot timeout in seconds before QEMU is killed and retried once. Default: `600` (10 minutes).
   - Exception: OpenBSD on `aarch64` defaults to `1200` (20 minutes) because it boots much slower under emulation.

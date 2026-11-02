@@ -32,6 +32,7 @@ try:
     from urllib.request import urlopen, Request, urlretrieve
     from urllib.request import ProxyHandler, build_opener, install_opener
     from urllib.request import HTTPHandler, HTTPSHandler, proxy_bypass
+    from urllib.request import HTTPRedirectHandler
     from urllib.error import HTTPError, URLError
     from urllib.parse import urljoin, urlsplit, unquote
     import http.client as http_client
@@ -40,7 +41,7 @@ except ImportError:
     # Python 2
     from urllib2 import urlopen, Request, HTTPError, URLError
     from urllib2 import ProxyHandler, build_opener, install_opener
-    from urllib2 import HTTPHandler, HTTPSHandler
+    from urllib2 import HTTPHandler, HTTPSHandler, HTTPRedirectHandler
     from urllib import proxy_bypass, unquote
     from urlparse import urljoin, urlsplit
     # The native SOCKS5 client below needs the Python 3 http.client /
@@ -205,13 +206,53 @@ OPENBIOS_SPARC64_ASSET = "openbios-sparc64.elf"
 # release, like every other pinned asset.
 RISCOS_ROM_ASSET = "RISCOS.IMG"
 
+# Pinned aarch64 UEFI firmware. WHY: edk2-stable202511 added FEAT_LPA2
+# support to ArmMmuLib, and ArmConfigureMmu() now programs TCR_EL1 with
+# DS=1 / T0SZ=12 BEFORE switching TTBR0 -- while ArmVirtQemu is still
+# running on its flash-resident early ID map, which uses the classic 48-bit
+# table format. On any CPU that reports a 52-bit PA range with LPA2 for 4K
+# pages -- QEMU's -cpu max under TCG, the default for most aarch64 guests
+# here -- the very next instruction fetch takes a translation fault, the
+# exception vector is unmapped too, and the firmware spins forever right
+# after printing its banner; the guest never reaches its bootloader.
+# -cpu max,lpa2=off does not help: the FEAT_LPA-only path then fails
+# ArmConfigureMmu outright and the DXE core faults on its first instruction.
+# Fixed upstream only in edk2-stable202605 (ArmVirtPkg/ArmPlatformLibQemu
+# "Support early ID map on LPA2 capable CPUs", tianocore/edk2#11962); every
+# build from edk2-stable202508 (where the LPA2 code landed) through
+# edk2-stable202602 has the bug -- Ubuntu 26.04's qemu-efi-aarch64
+# 2025.11-3ubuntu7 included, so every aarch64 guest on an ubuntu-26.04
+# runner hung (Launchpad #2167864).
+# The first build with the fix, edk2-stable202605, is no way out either:
+# on QEMU 10.2.1, Ubuntu 26.10's 2026.05-2ubuntu2 raises a Synchronous
+# Exception when the loaders of FreeBSD 12.4 (loader.efi) and openEuler
+# 22.03-LTS-SP4 (GRUB 2.06) hand over to the kernel.
+# The pinned file is therefore the unmodified QEMU_EFI.fd from Ubuntu
+# 24.04's qemu-efi-aarch64 2024.02-2ubuntu0.9 package (edk2-stable202402,
+# noble-updates): older than the LPA2 code, and the build the ubuntu-24.04
+# runners installed, on which the aarch64 guests here were tested before
+# the move to 26.04. anyvm-org/firmware publishes it as a release asset:
+# its fetch.sh copies the file out of the package with both the package
+# and the file sha256-pinned. It is pinned again here, so what gets booted
+# is checked against this source, not against the release. It replaces the
+# host firmware only when that firmware's embedded build stamp is
+# FIRST_BAD_AARCH64_FIRMWARE_BUILD or later, so hosts with an older
+# firmware keep theirs.
+FIRMWARE_VERSION = "0.0.2"
+PINNED_AARCH64_FIRMWARE_ASSET = "QEMU_EFI-2024.02-2ubuntu0.9.fd"
+PINNED_AARCH64_FIRMWARE_URL = ("https://github.com/anyvm-org/firmware/releases/download/"
+                               "v{}/{}".format(FIRMWARE_VERSION, PINNED_AARCH64_FIRMWARE_ASSET))
+PINNED_AARCH64_FIRMWARE_SHA256 = "8ff1fb8da2d8baf739bfdf020ff9ede225172c3a1b9d98e64e2b7935fd5ad4ab"
+# YYYYMM build stamp of the first edk2 stable release with the LPA2 code.
+FIRST_BAD_AARCH64_FIRMWARE_BUILD = 202508
+
 # Pinned user-space NFS server (github.com/anyvm-org/nfsd): one pure-Python
 # stdlib-only file serving NFSv3/v4.0/v4.1 plus a portmapper (-pmap), runs
 # on Linux/macOS/Windows without root and without a kernel nfsd. Downloaded
 # on demand from the release asset: it is the default backend for
 # `--sync nfs` (alias: mynfs); `--sync sys-nfs` forces the host kernel NFS
 # server instead.
-MYNFSD_VERSION = "0.1.0"
+MYNFSD_VERSION = "0.1.1"
 MYNFSD_URL = ("https://github.com/portsbuild-vm/nfsd/releases/download/"
               "v{}/nfsd.py".format(MYNFSD_VERSION))
 
@@ -421,15 +462,23 @@ def open_vnc_page(web_port, debug=False):
                 launcher = 'xdg-open'
                 subprocess.Popen([launcher, url], stdout=DEVNULL, stderr=DEVNULL)
         except Exception as e:
-            # Never fatal -- the URL is printed anyway. But stay visible under
-            # --debug: on WSL a missing WSLInterop binfmt entry makes every
-            # Windows .exe fail with "Exec format error", and a silent pass
-            # here makes that look like anyvm simply chose not to open a
-            # browser. Re-register with:
-            #   sudo sh -c 'echo ":WSLInterop:M::MZ::/init:PF" \
-            #       > /proc/sys/fs/binfmt_misc/register'
-            debuglog(debug, "Failed to open browser via {}: {}: {}".format(
-                launcher or "(no launcher)", type(e).__name__, e))
+            # Never fatal -- the URL is printed anyway.
+            import errno
+            if (launcher == 'explorer.exe' and not IS_WINDOWS
+                    and getattr(e, 'errno', None) == errno.ENOEXEC):
+                # WSL without a WSLInterop binfmt entry: every Windows .exe
+                # fails with "Exec format error". Seen on a fresh Ubuntu 26.04
+                # distro (systemd=true, no /etc/binfmt.d/WSLInterop.conf).
+                # Say so -- a silent pass looks like anyvm simply chose not
+                # to open a browser.
+                log("Could not open the browser: this WSL distro cannot run "
+                    "Windows programs (explorer.exe: Exec format error). Open {} "
+                    "yourself. To restore WSL interop:\n"
+                    "  echo ':WSLInterop:M::MZ::/init:PF' | sudo tee /etc/binfmt.d/WSLInterop.conf\n"
+                    "  sudo systemctl restart systemd-binfmt".format(url))
+            else:
+                debuglog(debug, "Failed to open browser via {}: {}: {}".format(
+                    launcher or "(no launcher)", type(e).__name__, e))
 
     t = threading.Thread(target=_open_in_background)
     t.daemon = True
@@ -2815,7 +2864,7 @@ Options:
   --os <name>            Operating System name (Required).
                          Supported: freebsd, hardenedbsd, opnsense, ghostbsd, midnightbsd, nextbsd,
                                     openbsd, netbsd, dragonflybsd, solaris, omnios, openindiana,
-                                    tribblix, haiku, ubuntu, debian, rocky, almalinux, openeuler,
+                                    tribblix, haiku, ubuntu, debian, rockylinux, almalinux, openeuler,
                                     alpine, blissos, hurd, plan9, reactos, riscos, redox
   --release <ver>        OS Release version (e.g., 15.0, 7.4).
                          If invalid or omitted, tries to detect from available releases.
@@ -2874,12 +2923,16 @@ Options:
   --disktype <type>      Disk interface type (e.g., virtio, ide).
                          Default: virtio (ide for dragonflybsd).
   --uefi                 Enable UEFI boot (Implicit for FreeBSD).
-  --firmware <path>      Path to the UEFI CODE firmware (e.g. OVMF_CODE.fd).
-                         Overrides auto-detection and implies --uefi. When
-                         omitted, anyvm searches next to the QEMU binary first
-                         (share/edk2/ovmf, share/OVMF, share/qemu) so a
-                         relocated install like ~/qemu-local works, then the
-                         usual system paths.
+  --firmware <path|URL>  The UEFI CODE firmware (e.g. OVMF_CODE.fd): a local
+                         path, or an http(s) URL that is downloaded once into
+                         the VM's directory. Overrides auto-detection and
+                         implies --uefi. When omitted, anyvm searches next to
+                         the QEMU binary first (share/edk2/ovmf, share/OVMF,
+                         share/qemu) so a relocated install like ~/qemu-local
+                         works, then the usual system paths; on aarch64 a
+                         host edk2 build from 2025.08 on (Ubuntu 26.04's
+                         2025.11 hangs under -cpu max) is then replaced by
+                         anyvm's pinned edk2 2024.02 build.
   --firmware-vars <path> Path to the matching UEFI VARS template (e.g.
                          OVMF_VARS.fd). Copied per-VM as the writable variable
                          store. Auto-detected next to the CODE firmware if
@@ -3313,9 +3366,29 @@ def _proxy_url_for_log(proxy_url):
         return proxy_url
 
 
+class AuthBoundRedirectHandler(HTTPRedirectHandler):
+    """urllib's default redirect handler copies every request header onto
+    the redirected request, Authorization included, so a credential meant
+    for api.github.com would follow a redirect to any other host. Keep
+    the header only while the redirect stays on the host it was sent to."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new_req = HTTPRedirectHandler.redirect_request(
+            self, req, fp, code, msg, headers, newurl)
+        if new_req is None:
+            return None
+        if urlsplit(newurl).netloc != urlsplit(req.get_full_url()).netloc:
+            for store in (new_req.headers, new_req.unredirected_hdrs):
+                for key in list(store.keys()):
+                    if key.lower() == 'authorization':
+                        del store[key]
+        return new_req
+
+
 def setup_download_proxy():
     """Detect proxy settings in the environment and install them as the
     default urllib opener so every download goes through the proxy.
+    The opener always carries AuthBoundRedirectHandler, proxy or not.
 
     urllib honors http_proxy/https_proxy on its own, but it silently
     ignores all_proxy/ALL_PROXY, cannot speak SOCKS at all, and never
@@ -3336,6 +3409,7 @@ def setup_download_proxy():
         for scheme in ("http", "https"):
             proxies.setdefault(scheme, all_proxy)
     if not proxies:
+        install_opener(build_opener(AuthBoundRedirectHandler()))
         return
     plain = {}
     socks = {}
@@ -3352,12 +3426,13 @@ def setup_download_proxy():
         else:
             plain[scheme] = proxy_url
     if not plain and not socks:
+        install_opener(build_opener(AuthBoundRedirectHandler()))
         return
     # Always supply our own ProxyHandler (even when plain is empty):
     # build_opener() otherwise adds a default ProxyHandler that re-reads
     # the same environment and chokes on socks5:// URLs with
     # "unknown url type: socks5".
-    handlers = [ProxyHandler(plain)]
+    handlers = [ProxyHandler(plain), AuthBoundRedirectHandler()]
     if socks:
         handlers.append(Socks5ProxyHandler(
             dict((scheme, entry[0]) for scheme, entry in socks.items())))
@@ -3371,10 +3446,23 @@ def setup_download_proxy():
 
 
 def fetch_url_content(url, debug=False, headers=None):
+    return fetch_url_content_ex(url, debug, headers)[0]
+
+def fetch_url_content_ex(url, debug=False, headers=None):
+    # Returns (text, status). status is the HTTP code that decided the
+    # outcome: 200 with text on success, 404 when the resource does not
+    # exist, 403/429 when the server rate-limited us, and 0 when every
+    # attempt failed on the network. Callers that need to tell "does not
+    # exist" apart from "could not ask" read the status; fetch_url_content
+    # keeps the old text-or-None contract.
     attempts = 20
     max_redirects = 5
     chrome_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     headers = headers or {}
+    # Extra headers carry credentials (the GitHub API Authorization
+    # header). They are meant for the host we were asked to fetch from and
+    # must not ride along on a redirect to some other host.
+    orig_host = urlsplit(url).netloc
     for attempt in range(attempts):
         current_url = url
         debuglog(debug, "fetch attempt {} for {}".format(attempt + 1, current_url))
@@ -3383,8 +3471,9 @@ def fetch_url_content(url, debug=False, headers=None):
             for ua in user_agents:
                 req = Request(current_url)
                 req.add_header('User-Agent', ua)
-                for hk, hv in headers.items():
-                    req.add_header(hk, hv)
+                if urlsplit(current_url).netloc == orig_host:
+                    for hk, hv in headers.items():
+                        req.add_header(hk, hv)
                 try:
                     resp = urlopen(req)
                     try:
@@ -3396,7 +3485,7 @@ def fetch_url_content(url, debug=False, headers=None):
                             pass
                     if data:
                         debuglog(debug, "fetched {} bytes from {} with UA {}".format(len(data), current_url, ua))
-                        return data.decode('utf-8')
+                        return data.decode('utf-8'), 200
                     debuglog(debug, "empty response from {} with UA {}; retrying".format(current_url, ua))
                     break  # empty body, retry outer loop
                 except HTTPError as e:
@@ -3408,7 +3497,19 @@ def fetch_url_content(url, debug=False, headers=None):
                             break  # follow redirect with default UA list
                     if e.code == 404:
                         log("404: " + current_url)
-                        return None
+                        return None, 404
+                    if e.code in (403, 429) and (e.code == 429 or e.headers.get('X-RateLimit-Remaining') == '0'):
+                        # A rate limit resets on the hour (GitHub: 60/h per
+                        # IP unauthenticated, and a runner shares its IP
+                        # with many other jobs). Retrying for a few minutes
+                        # cannot clear it, so stop here and say why.
+                        reset = e.headers.get('X-RateLimit-Reset') or ''
+                        if reset.isdigit():
+                            reset = " (resets in {}s)".format(max(0, int(reset) - int(time.time())))
+                        log("HTTP {} rate limit on {}{}".format(e.code, current_url, reset))
+                        if 'api.github.com' in current_url and 'Authorization' not in headers:
+                            log("Set GITHUB_TOKEN to make authenticated GitHub API requests, which have a much higher rate limit.")
+                        return None, e.code
                     debuglog(debug, "HTTPError {} on {} with UA {}".format(e.code, current_url, ua))
                     continue  # try next UA
                 except Exception as exc:
@@ -3424,7 +3525,7 @@ def fetch_url_content(url, debug=False, headers=None):
             debuglog(debug, "retrying in {:.1f}s".format(delay))
             time.sleep(delay)
     debuglog(debug, "fetch failed for {}".format(url))
-    return None
+    return None, 0
 
 def get_remote_file_info(url, debug=False):
     req = Request(url)
@@ -3451,15 +3552,31 @@ def get_remote_file_info(url, debug=False):
         return 0, False
 
 def check_url_exists(url, debug=False):
-    try:
-        req = Request(url)
-        req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-        u = urlopen(req, timeout=10)
-        u.close()
-        return True
-    except Exception as e:
-        debuglog(debug, "Check URL failed: {} - {}".format(url, str(e)))
-        return False
+    # Only a definitive 404 means "absent". Everything else (a reset, a
+    # DNS hiccup, a timeout, a 429/5xx from the CDN) is transient and is
+    # retried, because every caller treats False as "this image does not
+    # exist" and moves on to a slower, less reliable path. One lost probe
+    # of the release asset URL sent freebsd-vm#163 down the unauthenticated
+    # GitHub REST API, which a shared runner IP had already exhausted, and
+    # three minutes of API retries then surfaced as "Unsupported OS".
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            req = Request(url)
+            req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            u = urlopen(req, timeout=10)
+            u.close()
+            return True
+        except HTTPError as e:
+            if e.code == 404:
+                debuglog(debug, "Check URL: 404 {}".format(url))
+                return False
+            debuglog(debug, "Check URL attempt {} failed: {} - HTTP {}".format(attempt + 1, url, e.code))
+        except Exception as e:
+            debuglog(debug, "Check URL attempt {} failed: {} - {}".format(attempt + 1, url, str(e)))
+        if attempt < attempts - 1:
+            time.sleep(2 ** attempt)
+    return False
 
 def download_file_multithread(url, dest, total_size, show_progress, debug=False):
     tmp_dest = dest + ".part"
@@ -4406,11 +4523,59 @@ def qemu_binary_name(arch):
 
 # The complete Debian/Ubuntu host dependency set -- the same package list as
 # the README "Install dependencies" section; keep the two in lockstep.
+# The riscv64 emulator is not listed by name: qemu-system-riscv64 ships in
+# qemu-system-misc up to Ubuntu 24.04 / Debian 12 and in a separate
+# qemu-system-riscv package from Ubuntu 25.10 / Debian 13 on, which the
+# older releases do not have, so deps_install_hint() appends that package
+# only where apt knows it. The binary names are no substitute: Ubuntu 26.04
+# has qemu-system-riscv64 and qemu-system-aarch64 only as virtual packages
+# with two providers each (the regular and the -hwe build), which apt
+# refuses ("has no installation candidate").
 APT_ALL_DEPS = ("zstd ovmf xz-utils qemu-utils ca-certificates"
                 " qemu-system-x86 qemu-system-arm qemu-efi-aarch64"
-                " qemu-efi-riscv64 qemu-system-riscv64 qemu-system-misc"
+                " qemu-efi-riscv64 qemu-system-misc"
                 " u-boot-qemu qemu-system-ppc qemu-system-s390x"
                 " qemu-system-sparc ssh-client")
+
+
+def apt_has_package(name):
+    """True when this host's apt knows a package called `name` (the exit
+    status of `apt-cache show`, ~20 ms; only asked on error paths)."""
+    if not shutil.which("apt-cache"):
+        return False
+    try:
+        return subprocess.call(["apt-cache", "show", name],
+                               stdout=DEVNULL, stderr=DEVNULL) == 0
+    except OSError:
+        return False
+
+
+def apt_qemu_package(arch):
+    """The Debian/Ubuntu package that ships qemu_binary_name(arch)."""
+    if arch == "riscv64":
+        if apt_has_package("qemu-system-riscv"):
+            return "qemu-system-riscv"
+        return "qemu-system-misc"
+    if arch == "loongarch64":
+        return "qemu-system-misc"
+    if arch in ("aarch64", "armv7", "arm"):
+        return "qemu-system-arm"
+    if arch == "sparc64":
+        return "qemu-system-sparc"
+    if arch in ("powerpc64", "powerpc64le", "ppc64", "ppc64le"):
+        return "qemu-system-ppc"
+    if arch == "s390x":
+        return "qemu-system-s390x"
+    return "qemu-system-x86"
+
+
+def qemu_missing_label(arch, bin_name):
+    """How a missing QEMU binary is named in an error: on apt hosts together
+    with the package that ships it, since the binary name alone is not
+    installable everywhere (see APT_ALL_DEPS)."""
+    if shutil.which("apt-get"):
+        return "{} (Debian/Ubuntu package: {})".format(bin_name, apt_qemu_package(arch))
+    return bin_name
 
 def deps_install_hint():
     """Returns the platform-specific command that installs the COMPLETE host
@@ -4427,8 +4592,11 @@ def deps_install_hint():
     if platform.system() == "Darwin":
         return ("Install the dependencies with:\n"
                 "  brew install qemu")
+    deps = APT_ALL_DEPS
+    if apt_has_package("qemu-system-riscv"):
+        deps += " qemu-system-riscv"
     apt_cmd = ("sudo apt-get update && sudo apt-get"
-               " --no-install-recommends -y install " + APT_ALL_DEPS)
+               " --no-install-recommends -y install " + deps)
     if shutil.which("apt-get"):
         return ("Install the dependencies with:\n"
                 "  " + apt_cmd)
@@ -4487,8 +4655,33 @@ def qemu_version(qemu_bin):
         pass
     return None
 
+def find_loongarch_firmware(qemu_bin, firmware=None):
+    """Returns the EDK2 UEFI image the loongarch virt machine boots via
+    -bios, or "" when there is none: an explicit --firmware, else the
+    edk2-loongarch64-code.fd QEMU bundles (since 9.2), looked up next to
+    qemu_bin first (the pinned tarball ships it in its share/qemu tree),
+    then in the usual system paths."""
+    fw_dirs = []
+    if qemu_bin:
+        try:
+            _qpref = os.path.dirname(os.path.dirname(os.path.realpath(qemu_bin)))
+            fw_dirs.append(os.path.join(_qpref, "share"))
+        except Exception:
+            pass
+    fw_dirs += ["/usr/share", "/opt/homebrew/share", "/usr/local/share"]
+    code_candidates = []
+    if firmware:
+        code_candidates.append(firmware)
+    for d in fw_dirs:
+        code_candidates.append(os.path.join(d, "qemu", "edk2-loongarch64-code.fd"))
+    for c in code_candidates:
+        if os.path.exists(c):
+            return c
+    return ""
+
+
 def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bin_name=None,
-                       repo=None, builder_tag=None, force=False):
+                       repo=None, builder_tag=None, force=False, need=None):
     """Returns a qemu-system binary that is at least min_version for arch.
 
     If the system binary is new enough it is returned unchanged. Otherwise,
@@ -4517,6 +4710,9 @@ def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bi
     when the pin fixes a bug present in EVERY upstream version (sparc64: the
     sabre IRQ-clobber patch), where a newer system QEMU is not "good enough".
     min_version is then irrelevant to the decision.
+
+    need: with force, what the system QEMU lacks, for the log lines (default
+    ">= patched").
     """
     asset = PINNED_QEMU_ASSETS.get(arch)
     if not asset:
@@ -4532,7 +4728,12 @@ def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bi
         log("Warning: no pinned builder release known for {} ({}); "
             "continuing with system QEMU.".format(arch, asset))
         return qemu_bin
-    want = "patched" if force else "{}.{}".format(min_version[0], min_version[1])
+    if need and force:
+        want = need
+    elif force:
+        want = ">= patched"
+    else:
+        want = ">= {}.{}".format(min_version[0], min_version[1])
     if ver:
         have = "{}.{}".format(ver[0], ver[1])
     else:
@@ -4540,13 +4741,22 @@ def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bi
 
     # The published binaries are built on/for ubuntu noble (Linux x86_64).
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
-        log("Warning: system QEMU for {} is {} (recommended >= {}) and no "
+        log("Warning: system QEMU for {} is {} (recommended {}) and no "
             "pinned build exists for this host platform; the guest may "
             "misbehave.".format(arch, have, want))
         return qemu_bin
 
     tools_dir = os.path.join(working_dir, "tools")
-    extract_dir = os.path.join(tools_dir, removesuffix(asset, ".tar.zst"))
+    # One extraction per (builder repo, release). A builder may republish
+    # the SAME asset name with a fix -- riscos-builder v2.0.1 did, for the
+    # dwc2 port-reset bug -- and a cache keyed on the file name alone kept
+    # handing the stale v2.0.0 binary to every machine that had already
+    # extracted it, so the published fix was invisible there. Keying on the
+    # release the image came from keeps QEMU and image a matched pair on
+    # disk as well as in the download URL.
+    pin_dir = os.path.join(tools_dir, "{}-v{}".format(
+        repo.split("/")[-1], str(builder_tag).lstrip("v")))
+    extract_dir = os.path.join(pin_dir, removesuffix(asset, ".tar.zst"))
     # The binary name usually follows the arch key; ppc64le is the
     # exception (qemu-system-ppc64 serves both endiannesses).
     bin_rel = os.path.join("bin", bin_name or ("qemu-system-" + arch))
@@ -4568,14 +4778,14 @@ def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bi
     if not pinned:
         if not os.path.isdir(extract_dir):
             os.makedirs(extract_dir)
-        tar_path = os.path.join(tools_dir, asset)
+        tar_path = os.path.join(pin_dir, asset)
         # Exactly one URL: the guest's own builder, at the guest's own
         # release. No releases/latest, no sibling builder (see the module
         # comment next to PINNED_QEMU_ASSETS).
         url = "https://github.com/{}/releases/download/v{}/{}".format(
             repo, str(builder_tag).lstrip("v"), asset)
         if not os.path.exists(tar_path):
-            log("System QEMU for {} is {} (need >= {}); downloading pinned build...".format(arch, have, want))
+            log("System QEMU for {} is {} (need {}); downloading pinned build...".format(arch, have, want))
             if not download_file(url, tar_path, debug):
                 log("Warning: failed to download {}; continuing with system "
                     "QEMU ({}).".format(url, have))
@@ -4601,6 +4811,144 @@ def ensure_pinned_qemu(arch, qemu_bin, min_version, working_dir, debug=False, bi
         return qemu_bin
     log("Using pinned QEMU {}.{}: {} (system QEMU is {})".format(pver[0], pver[1], pinned, have))
     return pinned
+
+def sha256_file(path):
+    """sha256 hex digest of a file, read in 1 MiB chunks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# The build stamp of an edk2 aarch64 firmware image, read from its
+# PcdFirmwareVersionString: a UTF-16LE wide string in the uncompressed SEC
+# volume that distros set to their package version -- "2025.11-3ubuntu7"
+# (Ubuntu/Debian), "20260213-4.fc43" (Fedora),
+# "edk2-stable202408-prebuilt.qemu.org" (the edk2-aarch64-code.fd QEMU
+# itself bundles, 10.2 and 11.1 alike). Every form starts with year +
+# month; the optional dot covers the Debian style.
+_AARCH64_FW_BUILD_RE = re.compile(
+    br"(2\x000\x00[2-9]\x00[0-9]\x00)(?:\.\x00)?(0\x00[1-9]\x00|1\x00[0-2]\x00)")
+
+
+def aarch64_firmware_build(path):
+    """Returns the YYYYMM edk2 build stamp embedded in an aarch64 UEFI CODE
+    image (see _AARCH64_FW_BUILD_RE), or None when there is none to find --
+    the caller then leaves that firmware alone. Only the first 8 MiB are
+    scanned: the SEC volume sits at the start, and a 64 MiB pflash-padded
+    AAVMF_CODE.fd is mostly padding."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read(8 << 20)
+    except (IOError, OSError):
+        return None
+    m = _AARCH64_FW_BUILD_RE.search(data)
+    if not m:
+        return None
+    return int((m.group(1) + m.group(2)).replace(b"\x00", b""))
+
+
+def ensure_pinned_aarch64_firmware(vm_dir, vm_name, debug=False):
+    """Returns the path of the pinned aarch64 UEFI CODE image
+    (PINNED_AARCH64_FIRMWARE_ASSET), downloading it from the anyvm-org/firmware
+    release on first use, or None when it cannot be had. It is kept with the
+    VM's other files, as <vm_name>-<asset>.
+
+    The download is checked against PINNED_AARCH64_FIRMWARE_SHA256, so a
+    truncated, tampered or re-uploaded asset is discarded instead of booted."""
+    dest = os.path.join(vm_dir, "{}-{}".format(vm_name, PINNED_AARCH64_FIRMWARE_ASSET))
+    if os.path.isfile(dest):
+        if sha256_file(dest) == PINNED_AARCH64_FIRMWARE_SHA256:
+            return dest
+        log("Warning: {} does not match its sha256 pin; downloading it again.".format(dest))
+    if not os.path.isdir(vm_dir):
+        os.makedirs(vm_dir)
+    # pid-suffixed like ensure_mynfsd: two anyvm processes doing the first
+    # download cannot clobber each other's partial file, and the verified
+    # file lands with one atomic os.replace.
+    tmp = "{}.part.{}".format(dest, os.getpid())
+    ok = download_file(PINNED_AARCH64_FIRMWARE_URL, tmp, debug)
+    actual = sha256_file(tmp) if ok else ""
+    if actual != PINNED_AARCH64_FIRMWARE_SHA256:
+        if ok:
+            log("Warning: {} has sha256 {}, expected {}; discarding it.".format(
+                PINNED_AARCH64_FIRMWARE_URL, actual, PINNED_AARCH64_FIRMWARE_SHA256))
+        else:
+            log("Warning: failed to download {}".format(PINNED_AARCH64_FIRMWARE_URL))
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return None
+    os.replace(tmp, dest)
+    debuglog(debug, "{} sha256 verified: {}".format(dest, actual))
+    return dest
+
+
+def private_key_too_open(path):
+    """The permission bits of `path` when ssh would refuse it as a private
+    key, else None. Mirrors OpenSSH's sshkey_perm_ok() (authfile.c): a key
+    owned by the calling user must have no group/other bits, i.e.
+    (st_uid == getuid()) && (st_mode & 077) != 0 means "UNPROTECTED PRIVATE
+    KEY FILE ... This private key will be ignored". POSIX hosts only."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    if st.st_uid == os.getuid() and (st.st_mode & 0o077):
+        return st.st_mode & 0o777
+    return None
+
+
+def is_url(value):
+    """True when a path-or-URL option value is an http(s) URL."""
+    return bool(re.match(r"https?://", value or "", re.I))
+
+
+def fetch_firmware_url(url, vm_dir, vm_name, debug=False):
+    """--firmware <URL>: downloads the image once, next to the VM's other
+    files, as <vm_name>-firmware-<key>-<file name>, and returns that path.
+    The key is derived from the whole URL, so two URLs that end in the same
+    file name never share a copy, and "firmware-<key>" keeps a URL's file
+    name from ever landing on one of the VM's own files (a URL ending in
+    QEMU_EFI.fd would otherwise hit <vm_name>-QEMU_EFI.fd, the pflash copy).
+    Nothing pins what the URL serves, so a failed download is fatal instead
+    of falling back to a firmware the user did not ask for."""
+    name = os.path.basename(unquote(urlsplit(url).path))
+    name = re.sub(r"[^A-Za-z0-9._+-]", "_", name) or "firmware.fd"
+    key = hashlib.sha256(url.encode("utf-8")).hexdigest()[:8]
+    dest = os.path.join(vm_dir, "{}-firmware-{}-{}".format(vm_name, key, name))
+    if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+        debuglog(debug, "--firmware {}: using the copy downloaded earlier, {}".format(url, dest))
+        return dest
+    if not os.path.isdir(vm_dir):
+        os.makedirs(vm_dir)
+    # pid-suffixed like ensure_mynfsd, so concurrent first runs cannot
+    # clobber each other's partial file.
+    tmp = "{}.part.{}".format(dest, os.getpid())
+    if not download_file(url, tmp, debug) or os.path.getsize(tmp) == 0:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        fatal("Could not download the --firmware image from {}".format(url))
+    os.replace(tmp, dest)
+    debuglog(debug, "--firmware {} downloaded to {}".format(url, dest))
+    return dest
+
+
+def padded_copy_matches(padded, src, limit=4 << 20):
+    """True when the per-VM pflash copy at `padded` still starts with the
+    contents of `src` (up to `limit` bytes compared), so a firmware swap or a
+    host upgrade refreshes the copy instead of booting a stale one."""
+    try:
+        n = min(os.path.getsize(src), limit)
+        with open(src, "rb") as a, open(padded, "rb") as b:
+            return a.read(n) == b.read(n)
+    except (IOError, OSError):
+        return False
+
 
 def find_rsync():
     """Find rsync on host; returns absolute path or None."""
@@ -4852,6 +5200,14 @@ def whpx_available():
     except Exception:
         return False
 
+def freebsd_release_major(release):
+    """Leading numeric component of a FreeBSD release string ("10.4" -> 10,
+    "15.1-gnome" -> 15), or None when it does not start with a number
+    (empty, not yet resolved, or a non-numeric name)."""
+    m = re.match(r'^(\d+)', release or "")
+    return int(m.group(1)) if m else None
+
+
 def qemu_cpu_models(qemu_bin):
     """Returns the set of CPU model names listed by 'qemu -cpu help',
     or an empty set on any failure."""
@@ -5059,7 +5415,8 @@ def ensure_mynfsd(output_dir, debug=False):
     return dest
 
 def run_internal_nfsd(nfsd_path, export_dir, port, qemu_pid, log_path,
-                      debug=False, vers="", pmap=False):
+                      debug=False, vers="", pmap=False, all_squash=False,
+                      anon_uid="", anon_gid=""):
     """--internal-nfsd watchdog: runs nfsd.py as a child and stops it once the
     QEMU process it serves is gone. Spawned detached so a --detach VM keeps
     its NFS share after anyvm.py exits (same pattern as the VNC web proxy).
@@ -5068,7 +5425,10 @@ def run_internal_nfsd(nfsd_path, export_dir, port, qemu_pid, log_path,
     serves; pmap additionally serves the portmapper v2 on port 111, which
     only the v3-only BSD guests (NFSV4LESS_GUESTS) need. When 111 is taken
     (system rpcbind on Linux, or a second -v mount's nfsd instance), nfsd
-    logs a warning and keeps serving."""
+    logs a warning and keeps serving.
+
+    anon_uid/anon_gid are the LAUNCHING user's ids, taken before any sudo
+    (start_mynfsd); all_squash maps every guest uid onto them."""
     cmd = python_argv(nfsd_path) + [
         "-dir", export_dir, "-port", str(port), "-bind", "127.0.0.1"]
     if vers:
@@ -5077,8 +5437,12 @@ def run_internal_nfsd(nfsd_path, export_dir, port, qemu_pid, log_path,
         cmd.append("-pmap")
     # Report file owners to the guest as the launching user, mirroring the
     # anonuid/anongid mapping the kernel-nfsd export line uses.
-    if hasattr(os, "getuid"):
-        cmd.extend(["-anonuid", str(os.getuid()), "-anongid", str(os.getgid())])
+    if anon_uid == "" and hasattr(os, "getuid"):
+        anon_uid, anon_gid = str(os.getuid()), str(os.getgid())
+    if anon_uid != "":
+        cmd.extend(["-anonuid", anon_uid, "-anongid", anon_gid])
+    if all_squash:
+        cmd.append("-all_squash")
     if debug:
         cmd.append("-vv")
     with open(log_path, "a") as logf:
@@ -5138,18 +5502,23 @@ def probe_privileged_bind(port):
             pass
 
 def start_mynfsd(nfsd_path, vhost, port, log_path, qemu_pid, debug=False,
-                 use_sudo=False, vers="", pmap=False):
+                 use_sudo=False, vers="", pmap=False, all_squash=False):
     """Starts the user-space nfsd for one exported directory, detached behind
     the --internal-nfsd watchdog. Returns True once the port accepts TCP.
 
-    vers/pmap are forwarded to the nfsd (see run_internal_nfsd). use_sudo
-    runs the whole watchdog (and therefore the nfsd) as root via
+    vers/pmap/all_squash are forwarded to the nfsd (see run_internal_nfsd).
+    use_sudo runs the whole watchdog (and therefore the nfsd) as root via
     passwordless sudo, so the -pmap portmapper can bind privileged port 111.
     The sudo must wrap the WATCHDOG, not just the inner nfsd: an
-    unprivileged watchdog cannot signal a root child to stop it."""
+    unprivileged watchdog cannot signal a root child to stop it. The anon
+    ids are read HERE, before the sudo: under it getuid() is 0, and squashing
+    the guest to root would leave root-owned files in the user's tree."""
+    anon_uid = str(os.getuid()) if hasattr(os, "getuid") else ""
+    anon_gid = str(os.getgid()) if hasattr(os, "getgid") else ""
     args = self_argv() + [
         "--internal-nfsd", nfsd_path, vhost, str(port), str(qemu_pid),
-        log_path, "1" if debug else "0", vers, "1" if pmap else "0"]
+        log_path, "1" if debug else "0", vers, "1" if pmap else "0",
+        "1" if all_squash else "0", anon_uid, anon_gid]
     if use_sudo:
         args = ["sudo", "-n"] + args
     popen_kwargs = {}
@@ -5222,10 +5591,16 @@ def sync_mynfs(ssh_cmd, vhost, vguest, os_name, output_dir, vm_name, qemu_pid, d
                 "on this host.".format(os_name))
     log("Starting user-space nfsd (NFSv{}) on port {} exporting {}".format(
         "3" if (need_v3 or hurd_v3) else "4", port, vhost))
+    # Squash every guest uid onto the launching user, as sync_nfs does for
+    # the kernel nfsd: otherwise a non-root guest account whose uid differs
+    # from the host's cannot write the share (vmactions/solaris-vm#70). Not
+    # for the Hurd: /hurd/nfs chowns every new file to uid 0, which a
+    # squashed root may not do (the kernel export keeps no_root_squash for
+    # the same reason).
     if not start_mynfsd(nfsd_path, vhost, port, log_path, qemu_pid, debug,
                         use_sudo=use_sudo,
                         vers="3" if (need_v3 or hurd_v3) else "4",
-                        pmap=need_v3):
+                        pmap=need_v3, all_squash=not hurd_v3):
         log("Warning: the user-space nfsd did not come up on port {}; see {}".format(port, log_path))
         return
 
@@ -5325,6 +5700,16 @@ def sync_nfs(ssh_cmd, vhost, vguest, os_name, sudo_cmd):
         # (The user-space nfsd swallows the failed chown instead; the
         # kernel nfsd needs no_root_squash to get the same effect.)
         opts += ",no_root_squash"
+    else:
+        # Squash EVERY guest uid, not just root, to the launching user. The
+        # exported tree is owned by that user with umask-022 modes, so a
+        # non-root guest account (e.g. `useradd test; su test -c make`) only
+        # got write access when its uid happened to equal the host's: FreeBSD
+        # `pw useradd` hands out 1001 = the GitHub runner's uid, Solaris
+        # `useradd` hands out 1000, and every write there died with EACCES
+        # (vmactions/solaris-vm#70). Root was already squashed to the same
+        # anonuid, so root's view does not change.
+        opts += ",all_squash"
     entry_line = "{} *({})".format(vhost, opts)
 
     need_add = True
@@ -7244,6 +7629,110 @@ def tail_serial_log(path, stop_event):
         pass
 
 
+def host_cpu_summary():
+    """Return the host CPU identity as a list of "key: value" lines.
+
+    Used by the boot-timeout snapshot AND logged once per run under --debug.
+    The once-per-run copy exists because the snapshot only fires on a
+    timeout: FreeBSD 11.4 under KVM -cpu host hangs on its first boot on
+    some Intel runners (Xeon 6973P-C, Xeon Platinum 8573C; zero serial
+    output, zero guest traffic, qemu64 retry boots in seconds) yet boots
+    fine on others, and without the model of the runs that DID boot there
+    is nothing to tell a model that always hangs from one that only
+    sometimes does.
+    """
+    if not IS_WINDOWS:
+        try:
+            with open("/proc/cpuinfo") as f:
+                cpuinfo = f.read()
+            picked = []
+            for key in ("vendor_id", "model name", "cpu family", "model",
+                        "stepping", "microcode"):
+                m = re.search(r"^{}\s*:\s*(.+)$".format(re.escape(key)),
+                              cpuinfo, re.MULTILINE)
+                if m:
+                    picked.append("{}: {}".format(key, m.group(1).strip()))
+            m = re.search(r"^flags\s*:\s*(.+)$", cpuinfo, re.MULTILINE)
+            if m:
+                flags = set(m.group(1).split())
+                sample = [fl for fl in ("hypervisor", "avx512f", "avx2",
+                                        "sse4_2") if fl in flags]
+                picked.append("flags(sample): {}".format(" ".join(sample)))
+            return picked
+        except Exception as e:
+            return ["host cpuinfo read failed: {}".format(e)]
+    # Same information on Windows, same key names, because the WHPX
+    # launch has the same question to answer and had no way to answer it:
+    # the CPU model anyvm hands WHPX is chosen from the vendor ALONE
+    # (any AuthenticAMD host gets the newest entry in
+    # WHPX_AMD_CPU_MODELS), so a wedged WHPX launch always raises "was
+    # that model newer than this host?" -- and every Windows boot-timeout
+    # snapshot so far recorded no CPU at all.
+    #
+    # Read the registry rather than shelling out: WMIC is gone from
+    # current Windows images and a PowerShell Get-CimInstance costs a
+    # second or two, while this key is a plain read.
+    # HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0 holds
+    # ProcessorNameString (the brand string) and Identifier
+    # ("AMD64 Family 26 Model 112 Stepping 0"); PROCESSOR_IDENTIFIER is
+    # the same Identifier plus the vendor, and serves as the fallback.
+    try:
+        picked = []
+        ident = ""
+        name = ""
+        vendor = ""
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
+            try:
+                for value, target in (("VendorIdentifier", "vendor"),
+                                      ("ProcessorNameString", "name"),
+                                      ("Identifier", "ident")):
+                    try:
+                        got = str(winreg.QueryValueEx(key, value)[0]).strip()
+                    except OSError:
+                        got = ""
+                    if target == "vendor":
+                        vendor = got
+                    elif target == "name":
+                        name = got
+                    else:
+                        ident = got
+            finally:
+                winreg.CloseKey(key)
+        except Exception:
+            pass
+        env_ident = os.environ.get("PROCESSOR_IDENTIFIER", "").strip()
+        if not ident and env_ident:
+            # "AMD64 Family 26 Model 112 Stepping 0, AuthenticAMD"
+            parts = env_ident.rsplit(",", 1)
+            ident = parts[0].strip()
+            if not vendor and len(parts) == 2:
+                vendor = parts[1].strip()
+        if vendor:
+            picked.append("vendor_id: {}".format(vendor))
+        if name:
+            picked.append("model name: {}".format(name))
+        # Split the Identifier into the same fields /proc/cpuinfo names,
+        # so a Windows snapshot can be read next to a Linux one.
+        m = re.search(r"Family\s+(\d+)\s+Model\s+(\d+)\s+Stepping\s+(\d+)",
+                      ident or "")
+        if m:
+            picked.append("cpu family: {}".format(m.group(1)))
+            picked.append("model: {}".format(m.group(2)))
+            picked.append("stepping: {}".format(m.group(3)))
+        elif ident:
+            picked.append("identifier: {}".format(ident))
+        picked.append("cpu count: {}".format(
+            os.environ.get("NUMBER_OF_PROCESSORS", "?")))
+        picked.append("whpx available: {}".format(whpx_available()))
+        return picked
+    except Exception as e:
+        return ["host CPU read failed: {}".format(e)]
+
+
 def _dump_boot_debug_snapshot(config, label, serial_log_file, qmon_port, output_dir, vm_name, proc, cmd_list=None,
                               skip_monitor=False):
     """Dump diagnostic info on a boot-wait timeout. All output via debuglog so it only
@@ -7273,97 +7762,7 @@ def _dump_boot_debug_snapshot(config, label, serial_log_file, qmon_port, output_
     # -cpu host) tracks the runner's host CPU model; recording it on every
     # timeout lets failures be correlated to a CPU generation so the
     # culprit feature can eventually be masked precisely.
-    if not IS_WINDOWS:
-        try:
-            with open("/proc/cpuinfo") as f:
-                cpuinfo = f.read()
-            picked = []
-            for key in ("vendor_id", "model name", "cpu family", "model",
-                        "stepping", "microcode"):
-                m = re.search(r"^{}\s*:\s*(.+)$".format(re.escape(key)),
-                              cpuinfo, re.MULTILINE)
-                if m:
-                    picked.append("{}: {}".format(key, m.group(1).strip()))
-            m = re.search(r"^flags\s*:\s*(.+)$", cpuinfo, re.MULTILINE)
-            if m:
-                flags = set(m.group(1).split())
-                sample = [fl for fl in ("hypervisor", "avx512f", "avx2",
-                                        "sse4_2") if fl in flags]
-                picked.append("flags(sample): {}".format(" ".join(sample)))
-            debuglog(debug, "host CPU:\n{}".format("\n".join(picked)))
-        except Exception as e:
-            debuglog(debug, "host cpuinfo read failed: {}".format(e))
-    else:
-        # Same information on Windows, same key names, because the WHPX
-        # launch has the same question to answer and had no way to answer it:
-        # the CPU model anyvm hands WHPX is chosen from the vendor ALONE
-        # (any AuthenticAMD host gets the newest entry in
-        # WHPX_AMD_CPU_MODELS), so a wedged WHPX launch always raises "was
-        # that model newer than this host?" -- and every Windows boot-timeout
-        # snapshot so far recorded no CPU at all.
-        #
-        # Read the registry rather than shelling out: WMIC is gone from
-        # current Windows images and a PowerShell Get-CimInstance costs a
-        # second or two, while this key is a plain read.
-        # HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0 holds
-        # ProcessorNameString (the brand string) and Identifier
-        # ("AMD64 Family 26 Model 112 Stepping 0"); PROCESSOR_IDENTIFIER is
-        # the same Identifier plus the vendor, and serves as the fallback.
-        try:
-            picked = []
-            ident = ""
-            name = ""
-            vendor = ""
-            try:
-                import winreg
-                key = winreg.OpenKey(
-                    winreg.HKEY_LOCAL_MACHINE,
-                    r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
-                try:
-                    for value, target in (("VendorIdentifier", "vendor"),
-                                          ("ProcessorNameString", "name"),
-                                          ("Identifier", "ident")):
-                        try:
-                            got = str(winreg.QueryValueEx(key, value)[0]).strip()
-                        except OSError:
-                            got = ""
-                        if target == "vendor":
-                            vendor = got
-                        elif target == "name":
-                            name = got
-                        else:
-                            ident = got
-                finally:
-                    winreg.CloseKey(key)
-            except Exception:
-                pass
-            env_ident = os.environ.get("PROCESSOR_IDENTIFIER", "").strip()
-            if not ident and env_ident:
-                # "AMD64 Family 26 Model 112 Stepping 0, AuthenticAMD"
-                parts = env_ident.rsplit(",", 1)
-                ident = parts[0].strip()
-                if not vendor and len(parts) == 2:
-                    vendor = parts[1].strip()
-            if vendor:
-                picked.append("vendor_id: {}".format(vendor))
-            if name:
-                picked.append("model name: {}".format(name))
-            # Split the Identifier into the same fields /proc/cpuinfo names,
-            # so a Windows snapshot can be read next to a Linux one.
-            m = re.search(r"Family\s+(\d+)\s+Model\s+(\d+)\s+Stepping\s+(\d+)",
-                          ident or "")
-            if m:
-                picked.append("cpu family: {}".format(m.group(1)))
-                picked.append("model: {}".format(m.group(2)))
-                picked.append("stepping: {}".format(m.group(3)))
-            elif ident:
-                picked.append("identifier: {}".format(ident))
-            picked.append("cpu count: {}".format(
-                os.environ.get("NUMBER_OF_PROCESSORS", "?")))
-            picked.append("whpx available: {}".format(whpx_available()))
-            debuglog(debug, "host CPU:\n{}".format("\n".join(picked)))
-        except Exception as e:
-            debuglog(debug, "host CPU read failed: {}".format(e))
+    debuglog(debug, "host CPU:\n{}".format("\n".join(host_cpu_summary())))
 
     # QEMU full launch command line -- the exact args we passed
     if cmd_list:
@@ -7565,7 +7964,10 @@ def main():
                               int(sys.argv[5]), sys.argv[6],
                               len(sys.argv) > 7 and sys.argv[7] == '1',
                               sys.argv[8] if len(sys.argv) > 8 else "",
-                              len(sys.argv) > 9 and sys.argv[9] == '1')
+                              len(sys.argv) > 9 and sys.argv[9] == '1',
+                              len(sys.argv) > 10 and sys.argv[10] == '1',
+                              sys.argv[11] if len(sys.argv) > 11 else "",
+                              sys.argv[12] if len(sys.argv) > 12 else "")
         except Exception as e:
             try:
                 if len(sys.argv) > 6:
@@ -7593,6 +7995,10 @@ def main():
         'hostsshport': "",
         'console': False,
         'useefi': False,
+        # True only when the user asked for UEFI explicitly (--uefi /
+        # --firmware); the per-OS defaults leave it False so a release
+        # that cannot boot under UEFI can undo the OS default.
+        'uefi_requested': False,
         'detach': False,
         # --attach: operate on an already-running telnet-transport guest
         # instead of booting one; --pull-files selects the tar pull-back action.
@@ -7729,9 +8135,11 @@ def main():
             i += 1
         elif arg == "--uefi":
             config['useefi'] = True
+            config['uefi_requested'] = True
         elif arg == "--firmware":
             config['firmware'] = args[i+1]
             config['useefi'] = True
+            config['uefi_requested'] = True
             i += 1
         elif arg == "--firmware-vars":
             config['firmware_vars'] = args[i+1]
@@ -8071,7 +8479,7 @@ def main():
                               "ppc64", "ppc64le", "loongarch64", "armv7"):
         early_bin_name = qemu_binary_name(config['arch'])
         if not find_qemu(early_bin_name):
-            missing_deps.append(early_bin_name)
+            missing_deps.append(qemu_missing_label(config['arch'], early_bin_name))
     for dep_tool in ("ssh", "zstd"):
         if not shutil.which(dep_tool):
             missing_deps.append(dep_tool)
@@ -8240,7 +8648,7 @@ def main():
             debuglog(config['debug'], "Using GitHub token auth for releases")
 
         url = "https://api.github.com/repos/{}/releases".format(repo_slug)
-        content = fetch_url_content(url, config['debug'], headers=gh_headers)
+        content, status = fetch_url_content_ex(url, config['debug'], headers=gh_headers)
         if content:
             try:
                 data = json.loads(content)
@@ -8249,8 +8657,13 @@ def main():
                 releases_cache[repo_slug] = data
                 return data
             except ValueError:
-                return []
-        return []
+                return None
+        # [] means the API answered and the repository does not exist;
+        # None means we could not ask (network failure or rate limit). A
+        # caller must not report the latter as an unsupported OS.
+        if status == 404:
+            return []
+        return None
 
     zst_link = ""
     # Populated from the published <vm>.profile.json when running a release
@@ -8370,10 +8783,15 @@ def main():
     else:
         if not zst_link:
             releases_data = get_releases(builder_repo)
-    
+
+            if releases_data is None and (config['builder'] or not config['release']):
+                fatal("Could not fetch the release list of {} from the GitHub API (network failure or rate limit; see the messages above). "
+                      "This is a connectivity problem on this host, not a missing image or an unsupported OS.".format(builder_repo))
             if not releases_data and (config['builder'] or not config['release']):
                  fatal("Unsupported OS: {}. Builder repository {} not found.".format(config['os'], builder_repo))
-    
+            if releases_data is None:
+                releases_data = []
+
             if config['builder']:
                 target_tag = config['builder']
                 if not target_tag.startswith('v'):
@@ -8388,8 +8806,10 @@ def main():
                 if not filtered:
                     debuglog(config['debug'], "Builder version {} not found in cache. Refreshing...".format(target_tag))
                     releases_data = get_releases(builder_repo, force_refresh=True)
+                    if releases_data is None:
+                        fatal("Could not refresh the release list of {} from the GitHub API (network failure or rate limit; see the messages above).".format(builder_repo))
                     if not releases_data:
-                         fatal("Unsupported OS: {}. Builder repository {} not found or inaccessible.".format(config['os'], builder_repo))
+                         fatal("Unsupported OS: {}. Builder repository {} not found.".format(config['os'], builder_repo))
                     filtered = filter_releases(releases_data, target_tag)
                 
                 releases_data = filtered
@@ -8450,6 +8870,26 @@ def main():
 
 
         log("Using release: " + config['release'])
+        if config['os'] == "freebsd" and config['useefi'] \
+                and not config.get('uefi_requested'):
+            # FreeBSD 10.x / 11.x amd64 VM images carry no EFI system
+            # partition: release/tools/vmimage.subr only adds
+            # "-p efi:=.../boot1.efifat" to the amd64 scheme from 12.x on
+            # (releng/10.4 has no efi partition at all, releng/11.4 only
+            # for arm64). OVMF therefore finds nothing to boot and parks
+            # the guest at the EFI shell, while SeaBIOS boots the gptboot
+            # freebsd-boot partition those images do ship. The default
+            # useefi=True for freebsd (set before the release is resolved)
+            # is undone here, once the release is known; an explicit
+            # --uefi still wins. freebsd-builder builds every x86_64
+            # release through SeaBIOS, so this matches how the images were
+            # produced.
+            _fmaj = freebsd_release_major(config['release'])
+            if _fmaj is not None and _fmaj < 12:
+                config['useefi'] = False
+                log("FreeBSD {}: booting via SeaBIOS (this release's VM "
+                    "image has no EFI system partition; pass --uefi to "
+                    "override)".format(config['release']))
         # Find download link
         def find_image_link(releases, target_zst, target_xz):
             # Two passes: an exact match always wins, then the same search
@@ -8488,7 +8928,7 @@ def main():
                 if repo in searched:
                     continue
                 searched.add(repo)
-                repo_releases = releases_data if repo == builder_repo else get_releases(repo)
+                repo_releases = releases_data if repo == builder_repo else (get_releases(repo) or [])
                 link = find_image_link(repo_releases, target_zst, target_xz)
                 if link:
                     builder_repo = repo
@@ -8508,7 +8948,7 @@ def main():
                     if repo in searched:
                         continue
                     searched.add(repo)
-                    repo_releases = releases_data if repo == builder_repo else get_releases(repo)
+                    repo_releases = releases_data if repo == builder_repo else (get_releases(repo) or [])
                     link = find_image_link(repo_releases, target_zst_fallback, target_xz_fallback)
                     if link:
                         builder_repo = repo
@@ -8740,6 +9180,24 @@ def main():
                 tighten_windows_permissions(hostid_file)
             else:
                 os.chmod(hostid_file, 0o600)
+                # Some filesystems take the chmod and ignore it: a WSL drvfs
+                # mount (/mnt/c, /mnt/f) without the "metadata" option shows
+                # every file as 0777. ssh then drops the key, every login
+                # fails, and the guest's sshd soon refuses the host outright
+                # (PerSourcePenalties: "Not allowed at this time") -- the boot
+                # would only ever time out, so stop here and say why.
+                bad_mode = private_key_too_open(hostid_file)
+                if bad_mode is not None:
+                    fatal("{} is still mode {:04o} after chmod 600, so this "
+                          "filesystem ignores Unix permissions (on WSL: a "
+                          "/mnt/<drive> mount without the 'metadata' option). "
+                          "ssh refuses a private key others can read, so no "
+                          "login to the VM could succeed. Use a --data-dir on "
+                          "a filesystem that keeps permissions, or on WSL add\n"
+                          "  [automount]\n"
+                          "  options = \"metadata,umask=22,fmask=11\"\n"
+                          "to /etc/wsl.conf and restart the distro "
+                          "(wsl --terminate <distro>).".format(hostid_file, bad_mode))
 
         vmpub_url = "https://github.com/{}/releases/download/v{}/{}-id_rsa.pub".format(builder_repo, config['builder'], vm_name)
         vmpub_file = os.path.join(output_dir, vmpub_url.split('/')[-1])
@@ -9028,12 +9486,20 @@ def main():
         # The loongarch virt machine needs the bundled EDK2 LoongArch
         # firmware (edk2-loongarch64-code.fd), which QEMU only ships since
         # 9.2 -- noble's stock 8.2 has the binary but not the firmware, so
-        # a UEFI disk image cannot boot on it. The pinned tarball comes from
+        # a UEFI disk image cannot boot on it. A new enough QEMU does not
+        # guarantee it either: Ubuntu 26.04's 10.2.1 packages carry no
+        # LoongArch firmware at all (its separate qemu-efi-loongarch64
+        # package is another build, untested here), so without --firmware
+        # the pinned build is also used whenever find_loongarch_firmware()
+        # comes up empty for the system QEMU. The pinned tarball comes from
         # this guest's own builder release, like every other pinned asset.
+        no_fw = not config['firmware'] and not find_loongarch_firmware(qemu_bin)
         qemu_bin = ensure_pinned_qemu("loongarch64", qemu_bin, (9, 2),
                                       working_dir, config['debug'],
                                       repo=builder_repo,
-                                      builder_tag=config.get('builder'))
+                                      builder_tag=config.get('builder'),
+                                      force=no_fw,
+                                      need="a QEMU that bundles edk2-loongarch64-code.fd")
     elif config['arch'] == "sparc64" and host_arch != "sparc64":
         # sun4u's sabre PCI host bridge has a single-slot IRQ-dispatch bug
         # in EVERY upstream QEMU (the PCI-INO branch clobbers an outstanding
@@ -9069,9 +9535,10 @@ def main():
                                       builder_tag=config.get('builder'))
 
     if not qemu_bin:
-        fatal("QEMU binary '{}' not found (searched PATH and common "
+        fatal("QEMU binary {} not found (searched PATH and common "
               "install locations).\n{}".format(
-                  bin_name, deps_install_hint()))
+                  qemu_missing_label(config['arch'], "'{}'".format(bin_name)),
+                  deps_install_hint()))
 
     # Log which QEMU actually got picked, AFTER every pinned-build swap above.
     # Some packagings do not carry an upstream version anywhere a log reader
@@ -9298,7 +9765,7 @@ def main():
     # An empty release means "resolve the newest", which for these guests is
     # 10; an explicit 9 is a v2 userspace and keeps hardware acceleration.
     if (accel == "whpx"
-            and config['os'] in ("rocky", "almalinux")
+            and config['os'] in ("rockylinux", "almalinux")
             and not (config['release'] or "").startswith("9")
             and not config['cputype']):
         _nested, _evidence = windows_host_is_virtual()
@@ -9460,6 +9927,12 @@ def main():
         config['boot_timeout_retry_sec'] = config['boot_timeout_sec']
         config['boot_timeout_sec'] = 180
         debuglog(config['debug'], "KVM x86_64-on-x86_64: first-boot timeout reduced to 180s (retry keeps {}s)".format(config['boot_timeout_retry_sec']))
+
+    # The host CPU on every --debug run, not only in the boot-timeout
+    # snapshot: see host_cpu_summary() for why the runs that boot fine
+    # need it too.
+    if config['debug']:
+        debuglog(config['debug'], "host CPU:\n{}".format("\n".join(host_cpu_summary())))
 
 
     # Disk type selection. A user --disktype wins; otherwise the guest profile
@@ -9654,8 +10127,28 @@ def main():
             "-drive", "file={},format=qcow2,if=ide,index=0".format(qcow_name)
         ])
     else:
+        # Redox 0.9.0's IDE driver gives every polled ATA command a hard-coded
+        # 1 s (redox-os/drivers storage/ided/src/ide.rs: `static TIMEOUT:
+        # Duration = Duration::new(1, 0)`; the later redox-os/base copy has
+        # 5 s), and it sends FLUSH CACHE after every write. QEMU completes a
+        # guest flush only when fdatasync() on the image returns, so one host
+        # flush slower than 1 s fails the command: ided logs "line 443
+        # polling write timeout with status 0xC0", redoxfs cannot open the
+        # root filesystem, init stops at "failed to cd to '/'" and the boot
+        # wait runs out. test.yml "Test redox tar" failed exactly so on
+        # ubuntu-26.04 runners, ~4 s into the boot. Locally, delaying only the
+        # first host fdatasync reproduces it at 1.24 s and not at 0.85 s.
+        # cache.no-flush=on (the no-flush half of cache=unsafe) completes
+        # guest flushes without any host fdatasync -- none is issued at all
+        # -- so the boot no longer depends on host flush latency (checked on
+        # QEMU 10.2.1 and 8.2.2). Writes still reach the host page cache and
+        # QEMU still writes its qcow2 metadata out on every flush, so only a
+        # host crash or power loss could lose data.
+        drive_extra = ""
+        if config['os'] == "redox" and disk_if == "ide":
+            drive_extra = ",cache.no-flush=on"
         args_qemu.extend([
-            "-drive", "file={},format=qcow2,if={},discard=unmap,detect-zeroes=unmap".format(qcow_name, disk_if)
+            "-drive", "file={},format=qcow2,if={},discard=unmap,detect-zeroes=unmap{}".format(qcow_name, disk_if, drive_extra)
         ])
 
     rtc_base = "utc"
@@ -9796,13 +10289,13 @@ def main():
             # the installed guest already has bound with a DHCP lease on it.
             # Same profile-less --qcow2 reasoning as plan9 above.
             net_card = "e1000"
-        elif config['os'] in ("ubuntu", "debian", "rocky", "almalinux"):
+        elif config['os'] in ("ubuntu", "debian", "rockylinux", "almalinux"):
             # The ubuntu-builder image is built and validated on a virtio NIC
             # (conf VM_NIC=virtio / libvirt <model type='virtio'>). The baked
             # cloud-init/netplan brings DHCP up on that interface; the x86
             # default e1000 would enumerate under a different name and the
             # guest could fail to obtain a lease. Match the builder.
-            # debian-builder, rocky-builder and almalinux-builder are the
+            # debian-builder, rockylinux-builder and almalinux-builder are the
             # same shape (conf VM_NIC=virtio, cloud-init DHCP bound to the
             # virtio interface).
             net_card = "virtio-net-pci"
@@ -9861,6 +10354,11 @@ def main():
         debuglog(config['debug'],
                  "NetBSD vioif: withdrawing CTRL_VQ -> {}".format(net_card))
 
+    # --firmware also takes an http(s) URL: fetch it once here, into the VM's
+    # own directory, so every arch branch below sees a local path.
+    if is_url(config['firmware']):
+        config['firmware'] = fetch_firmware_url(config['firmware'], output_dir, vm_name, config['debug'])
+
     # Platform specific args
     if config['arch'] == "aarch64":
         efi_path = os.path.join(output_dir, vm_name + "-QEMU_EFI.fd")
@@ -9896,12 +10394,39 @@ def main():
                 efi_src = c
                 break
 
+        # Swap a known-broken host firmware for anyvm's pinned build (see
+        # PINNED_AARCH64_FIRMWARE_ASSET). An explicit --firmware is used as
+        # given.
+        if efi_src and not config['firmware']:
+            fw_build = aarch64_firmware_build(efi_src)
+            if fw_build is not None and fw_build >= FIRST_BAD_AARCH64_FIRMWARE_BUILD:
+                pinned_fw = ensure_pinned_aarch64_firmware(output_dir, vm_name, config['debug'])
+                if pinned_fw:
+                    log("Using anyvm's pinned aarch64 UEFI firmware {}: {} is an edk2 "
+                        "{}.{:02d} build; builds from 2025.08 on hang under -cpu max "
+                        "(tianocore/edk2#11962) or fault in older guests' boot "
+                        "loaders".format(PINNED_AARCH64_FIRMWARE_ASSET,
+                                         efi_src, fw_build // 100, fw_build % 100))
+                    efi_src = pinned_fw
+                else:
+                    log("Warning: could not get anyvm's pinned aarch64 UEFI firmware; "
+                        "continuing with {} (pass --firmware <path|URL> to override).".format(efi_src))
+            else:
+                debuglog(config['debug'], "Host aarch64 firmware {} (build stamp {}) "
+                         "is fine, keeping it".format(efi_src, fw_build or "unknown"))
+
         if not os.path.exists(efi_path):
             if not efi_src:
                 fatal("aarch64 UEFI firmware not found (e.g. edk2-aarch64 "
                       "QEMU_EFI.fd). Install it or pass --firmware <path>.")
             debuglog(config['debug'], "Found Aarch64 EFI firmware: {}".format(efi_src))
             # ARM virt pflash is a fixed 64MB; pad the firmware into it.
+            create_sized_file(efi_path, 64)
+            copy_content_to_file(efi_src, efi_path)
+        elif efi_src and not padded_copy_matches(efi_path, efi_src):
+            # The per-VM copy outlives runs; refresh it when the source
+            # firmware changed (host upgrade, or the swap above kicking in).
+            debuglog(config['debug'], "Refreshing {} from {}".format(efi_path, efi_src))
             create_sized_file(efi_path, 64)
             copy_content_to_file(efi_src, efi_path)
 
@@ -10019,6 +10544,17 @@ def main():
                 and obsd_rel is not None and len(obsd_rel) >= 2 and obsd_rel < (7, 4)):
             machine_opts += ",acpi=off"
             debuglog(config['debug'], "OpenBSD aarch64 < 7.4: disabling ACPI (force FDT for PCI interrupts)")
+        # NetBSD 9.x booting through ACPI hangs on Ubuntu 26.04's QEMU 10.2.1
+        # right after its interrupt controller attaches: after sizing the
+        # GICv3 ITS tables, and just the same with its=off, with
+        # gic-version=2, or with the virt-8.2 / virt-9.2 machine types. With
+        # ACPI off it boots from the device tree to ssh, on 10.2.1 and on
+        # QEMU 8.2.2 alike (8.2.2 also boots it through ACPI), so the rule
+        # needs no version gate. NetBSD 10.x and 11.0 are not affected.
+        if (config['os'] == "netbsd" and config['arch'] == "aarch64"
+                and (config['release'] or "").split('.')[0] == "9"):
+            machine_opts += ",acpi=off"
+            debuglog(config['debug'], "NetBSD aarch64 9.x: disabling ACPI (boot from the device tree)")
 
         args_qemu.extend([
             "-machine", machine_opts,
@@ -10040,6 +10576,10 @@ def main():
         machine_opts = "virt,accel=tcg,usb=on,acpi=off"
         if not is_vnc_console:
              machine_opts += ",graphics=off"
+        try:
+            rv_rel = tuple(int(x) for x in (config['release'] or "").split('.')[:2])
+        except ValueError:
+            rv_rel = None
         if config['cputype']:
             cpu_opts = config['cputype']
         elif config['os'] == "ubuntu" and (config['release'] or "").startswith("26."):
@@ -10052,6 +10592,22 @@ def main():
             # clearest available signal that the host QEMU is too old for
             # this guest. 22.04 / 24.04 keep booting on plain rv64.
             cpu_opts = "rva23s64"
+        elif (config['os'] == "freebsd"
+                and rv_rel is not None and len(rv_rel) >= 2 and rv_rel < (14, 4)
+                and (qemu_version(qemu_bin) or (0, 0)) >= (10, 1)):
+            # FreeBSD 13.2 - 14.3 riscv64 hang on Ubuntu 26.04's QEMU 10.2.1
+            # right after the last PCI device attaches, before "Timecounters
+            # tick" (every leg of those seven releases in anyvm run
+            # 36144218897) -- the same with OpenSBI 1.3, 1.7 and 1.8.1, and
+            # with the balloon, rng or xhci device removed; with Sstc turned
+            # off they boot to login. 14.4, 14.5 and 15.x boot on 10.2.1 with
+            # Sstc, and QEMU 8.2.2 boots all of them. QEMU 10.1 is where the
+            # Sstc timer code was reworked (dff5f51540 "Enable/Disable
+            # S/VS-mode Timer when STCE bit is changed" and its series), so
+            # the extension is only turned off from there on; 10.0 is
+            # untested. Without Sstc, S-mode has no stimecmp and sets its
+            # timer through SBI, as on hardware that lacks the extension.
+            cpu_opts = "rv64,sstc=off"
         else:
             cpu_opts = "rv64"
 
@@ -10153,9 +10709,10 @@ def main():
         # persisted, the openEuler image boots via the EFI fallback path).
         # QEMU bundles edk2-loongarch64-code.fd only since 9.2;
         # ensure_pinned_qemu above swapped in the pinned 10.2.3 build when
-        # the system QEMU is older, so the search below looks next to the
-        # resolved QEMU binary first (the pinned tarball ships the firmware
-        # in its share/qemu tree).
+        # the system QEMU is older or has no such firmware, so
+        # find_loongarch_firmware() looks next to the resolved QEMU binary
+        # first (the pinned tarball ships the firmware in its share/qemu
+        # tree).
         machine_opts = "virt,accel=tcg"
         cpu_opts = config['cputype'] or "la464"
         args_qemu.extend([
@@ -10164,25 +10721,7 @@ def main():
             "-device", "{},netdev=net0".format(net_card),
         ])
 
-        fw_dirs = []
-        if qemu_bin:
-            try:
-                _qpref = os.path.dirname(os.path.dirname(os.path.realpath(qemu_bin)))
-                fw_dirs.append(os.path.join(_qpref, "share"))
-            except Exception:
-                pass
-        fw_dirs += ["/usr/share", "/opt/homebrew/share", "/usr/local/share"]
-
-        code_candidates = []
-        if config['firmware']:
-            code_candidates.append(config['firmware'])
-        for d in fw_dirs:
-            code_candidates.append(os.path.join(d, "qemu", "edk2-loongarch64-code.fd"))
-        code_src = ""
-        for c in code_candidates:
-            if os.path.exists(c):
-                code_src = c
-                break
+        code_src = find_loongarch_firmware(qemu_bin, config['firmware'])
         if not code_src:
             fatal("No LoongArch UEFI firmware (edk2-loongarch64-code.fd) "
                   "found. Use a QEMU >= 9.2 that bundles it, or pass "
@@ -10307,6 +10846,21 @@ def main():
         if config['cputype']:
             # Explicit --cpu-type wins (the x86_64 branch previously ignored it).
             cpu_opts = config['cputype']
+        elif config['os'] == "freebsd" and \
+                freebsd_release_major(config['release']) == 10:
+            # HAND-MAINTAINED mirror of VM_CPU_MODEL=qemu64 in
+            # freebsd-builder's conf/freebsd-10.4.conf (anyvm never reads
+            # cpu_model back from the profile; see the aarch64 branch for
+            # the same rule). FreeBSD 10.x's signal delivery panics when
+            # -cpu host exposes the full modern XSAVE feature set, so the
+            # image is built and must be run on QEMU's baseline model,
+            # under every accelerator. The generic pmu=off append below
+            # still applies under KVM/HVF/WHPX, as it does in build.py.
+            # --cpu-type overrides.
+            cpu_opts = "qemu64"
+            log("FreeBSD {}: using the qemu64 CPU model (mirrors the "
+                "builder's VM_CPU_MODEL pin; pass --cpu-type to "
+                "override)".format(config['release']))
         elif accel in ["kvm", "whpx", "hvf"]:
             if accel == "kvm":
                 if config['os'] == 'dragonflybsd':
@@ -10771,6 +11325,15 @@ def main():
                 and not microvm_kernel_file):
             if config['arch'] == "aarch64":
                 args_qemu.extend(["-device", "usb-kbd", "-device", "virtio-tablet-pci"])
+            elif config['os'] == "riscos":
+                # RISC OS's USBDriver carries boot-protocol keyboard and
+                # mouse drivers, and both work on the raspi2b bus once the
+                # patched QEMU keeps framing it after the Wimp-startup port
+                # reset (riscos-vm#12). usb-kbd types into the desktop. The
+                # pointer must be usb-mouse, not usb-tablet: QEMU's tablet
+                # STALLs SET_PROTOCOL, which RISC OS's mouse driver requires,
+                # so a tablet enumerates and is then left without a driver.
+                args_qemu.extend(["-device", "usb-kbd", "-device", "usb-mouse"])
             else:
                 args_qemu.extend(["-device", "usb-tablet"])
 
@@ -11447,6 +12010,14 @@ def main():
 
                 if timed_out:
                     continue
+                # A probe that fails fast -- nothing listening yet (slirp
+                # accepts, then closes at once) or the guest's sshd refusing
+                # us -- was retried immediately, about ten a second: a 26.04
+                # WSL host whose key ssh ignored had 571 connections to the
+                # ssh port in TIME-WAIT at once. Every one that reaches sshd
+                # counts toward OpenSSH's PerSourcePenalties, against the one
+                # slirp address all host traffic shares. Pace the retries.
+                time.sleep(1)
 
             
             wait_timer_stop.set()
