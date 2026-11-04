@@ -891,7 +891,7 @@ class TestImageGate(MainCase):
         calls = []
         assets = [{"name": "asset-%d" % i, "state": "uploaded"}
                   for i in range(bv.ASSETS_PER_PAGE)]
-        root = bv.API + "/repos/anyvm-org/demo-builder/releases"
+        root = bv.API + "/repos/portsbuild-vm/demo-builder/releases"
         responses = {
             root + "/tags/v2.0.1": {"id": 7},
             root + "/7/assets?per_page=100&page=1": assets,
@@ -913,7 +913,7 @@ class TestImageGate(MainCase):
         assets += [{"name": "filler-%d" % i, "state": "uploaded"}
                    for i in range(bv.ASSETS_PER_PAGE - len(assets))]
         base = self._fetch(self.index)
-        root = bv.API + "/repos/anyvm-org/demo-builder/releases/7/assets"
+        root = bv.API + "/repos/portsbuild-vm/demo-builder/releases/7/assets"
 
         def fetch(url):
             if url == root + "?per_page=100&page=1":
@@ -1024,7 +1024,7 @@ class TestImageGate(MainCase):
     def test_kernel_check_reads_exact_profile_urls(self):
         # Exact URLs, so the fixtures' substring catch-all cannot hide a
         # wrong one; build:false rows and an empty index fetch nothing.
-        root = ("https://github.com/anyvm-org/demo-builder/releases/"
+        root = ("https://github.com/portsbuild-vm/demo-builder/releases/"
                 "download/v2.0.1/")
         responses = {
             root + "demo-15.2.profile.json": {"machine_type": "q35"},
