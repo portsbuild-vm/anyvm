@@ -240,7 +240,7 @@ RISCOS_ROM_ASSET = "RISCOS.IMG"
 # firmware keep theirs.
 FIRMWARE_VERSION = "0.0.2"
 PINNED_AARCH64_FIRMWARE_ASSET = "QEMU_EFI-2024.02-2ubuntu0.9.fd"
-PINNED_AARCH64_FIRMWARE_URL = ("https://github.com/anyvm-org/firmware/releases/download/"
+PINNED_AARCH64_FIRMWARE_URL = ("https://github.com/portsbuild-vm/firmware/releases/download/"
                                "v{}/{}".format(FIRMWARE_VERSION, PINNED_AARCH64_FIRMWARE_ASSET))
 PINNED_AARCH64_FIRMWARE_SHA256 = "8ff1fb8da2d8baf739bfdf020ff9ede225172c3a1b9d98e64e2b7935fd5ad4ab"
 # YYYYMM build stamp of the first edk2 stable release with the LPA2 code.
