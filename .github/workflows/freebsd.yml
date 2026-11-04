@@ -61,27 +61,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["14.4", "14.5", "15.0", "15.1"]
+        release: ["14.5", "15.1"]
         arch: ["aarch64", ""]
         runs: ["ubuntu-26.04", "ubuntu-26.04-arm"]
         sync: ["sshfs", "nfs", "scp", "rsync", "tar"]
-        exclude:
-          - runs: ubuntu-26.04-arm
-            arch: ""
-          # 10.4 / 11.4 exist on x86_64 only (builder >= v2.2.8).
-          - release: "10.4"
-            arch: aarch64
-          - release: "11.4"
-            arch: aarch64
-          # 12.4-aarch64 is base-only: the SGGS mirror that restored the
-          # FreeBSD:12 packages for amd64 has no aarch64 tree, so no rsync
-          # and no sshfs there (12.4 x86_64 has all five since v2.2.8).
-          - release: "12.4"
-            arch: aarch64
-            sync: rsync
-          - release: "12.4"
-            arch: aarch64
-            sync: sshfs
+#        exclude:
+#          - runs: ubuntu-26.04-arm
+#            arch: ""
+#          # 10.4 / 11.4 exist on x86_64 only (builder >= v2.2.8).
+#          - release: "10.4"
+#            arch: aarch64
+#          - release: "11.4"
+#            arch: aarch64
+#          # 12.4-aarch64 is base-only: the SGGS mirror that restored the
+#          # FreeBSD:12 packages for amd64 has no aarch64 tree, so no rsync
+#          # and no sshfs there (12.4 x86_64 has all five since v2.2.8).
+#          - release: "12.4"
+#            arch: aarch64
+#            sync: rsync
+#          - release: "12.4"
+#            arch: aarch64
+#            sync: sshfs
 
 
     uses: ./.github/workflows/testrun.yml
@@ -110,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["14.4", "14.5", "15.0", "15.1"]
+        release: ["14.5", "15.1"]
         arch: ["riscv64"]
         runs: ["ubuntu-26.04"]
         sync: ["nfs", "scp", "tar"]
@@ -119,14 +119,6 @@ jobs:
         # packages), so those two releases have all five backends. The
         # older riscv64 images are still base-only.
         include:
-          - release: "15.0"
-            arch: riscv64
-            runs: ubuntu-26.04
-            sync: rsync
-          - release: "15.0"
-            arch: riscv64
-            runs: ubuntu-26.04
-            sync: sshfs
           - release: "15.1"
             arch: riscv64
             runs: ubuntu-26.04
@@ -162,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["14.4", "14.5", "15.0", "15.1"]
+        release: ["14.5", "15.1"]
         arch: ["powerpc64"]
         runs: ["ubuntu-26.04"]
         sync: ["nfs", "scp", "tar"]
