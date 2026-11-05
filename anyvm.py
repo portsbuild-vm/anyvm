@@ -143,7 +143,7 @@ OPENBSD_E1000_RELEASES = {"7.3", "7.4", "7.5", "7.6"}
 
 
 DEFAULT_BUILDER_VERSIONS = {
-    "freebsd": "2.3.0"
+    "freebsd": "2.3.1"
 }
 
 # Pinned, self-contained QEMU builds published as release assets by
